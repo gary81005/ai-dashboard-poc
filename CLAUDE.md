@@ -13,15 +13,28 @@ npm run preview  # serve the production build from dist/
 
 There is no test runner configured. `npm run build` and `npm run lint` are the only verification available — run both before claiming a change is done, since `tsc -b` catches things ESLint does not (the lint config is _not_ type-aware: it uses `tseslint.configs.recommended`, not `recommendedTypeChecked`).
 
-## Current state
+## Product & design docs
 
-The app is still the unmodified Vite starter: `src/App.tsx` renders the template landing page (counter + Vite/React links), `src/main.tsx` mounts it under `StrictMode`. No product code exists yet, but the design is decided — read these before implementing anything:
+A personal dashboard builder: upload a standardized Excel workbook, drag columns onto chart slots, arrange widgets on a grid. Frontend only. Read these before changing behavior:
 
 - `CONTEXT.md` — domain glossary (Dataset, DataTable, Field, FieldRef, Widget, encoding slots, ratio fields…). Use these names in code.
 - `docs/adr/` — decisions 0001–0006: frontend-only storage (localStorage config + IndexedDB rows), ExcelJS parsing, field identity/rebinding, role & aggregation rules, the persisted JSON schema v1, and the library stack. Read 0005 before changing anything that is persisted.
 - `public/samples/` — the sample standardized workbook loaded by the "載入範例資料" button.
 
-All libraries from ADR 0006 are installed (`xlsx` was replaced by `exceljs`). Two are unmaintained — `exceljs` and `react-dnd` — so don't upgrade-hunt them; their behavior under React Compiler/StrictMode still has to be checked once real components use them. `exceljs` is ~930 KB minified: load it only via dynamic `import('exceljs')` at upload time, never a static import.
+Two dependencies are unmaintained — `exceljs` and `react-dnd` — so don't upgrade-hunt them. `exceljs` is ~930 KB minified: load it only via dynamic `import('exceljs')` (see `services/parseWorkbook.ts`), never a static import.
+
+## Source layout
+
+- `src/types/` — the persisted config shape (source of truth for ADR 0005). Changing a field's meaning requires bumping `SCHEMA_VERSION` and a `migrate` step in `store/appStore.ts`.
+- `src/utils/` — pure logic, no React: field matching (`fields.ts`), role/ratio inference, the aggregation engine (`query.ts`), number formatting.
+- `src/services/` — I/O: Excel parsing, IndexedDB rows, dataset import/delete, sample loading.
+- `src/store/` — Zustand stores. `appStore` is the only persisted one (one localStorage key); `rowsStore` caches IndexedDB rows in memory; `uiStore` holds navigation (there is no router).
+- `src/constants/` — sample dashboard fixture, the per-type slot catalogue (`widgetTypes.ts`, drives the editor), the drag type.
+- `src/components/` — `widgets/` (one renderer per widget type), `editor/` (field panel, drop slots, widget settings — edit mode), `dashboard/` (grid, rebind dialog), `dashboards/` (list cards, create/import dialogs), `datasets/`. `src/pages/` has one component per screen; `src/hooks/` holds `useDatasetRows`.
+
+Widget components must not throw during render: queries go through `utils/runQuery.ts`, which turns a `MissingFieldError` into a "欄位遺失" message instead of a crash.
+
+MUI X chart axes use `height: 'auto'` / `width: 'auto'`. The fixed defaults (25px / 45px) are too small for CJK tick labels and MUI ellipsizes them to an empty string. Exception: an x-axis with a `label` needs a fixed height, because auto-sizing ignores the title.
 
 ## Toolchain constraints
 
@@ -44,6 +57,5 @@ A new build-time/config file at the repo root (e.g. a Vitest or Tailwind config)
 
 ## Assets
 
-- `src/assets/*` — imported as modules, hashed by Vite.
+- Colors come from the MUI theme in `src/theme.ts` (`cssVariables: true`, light/dark `colorSchemes` following the OS). Use theme tokens (`color='text.secondary'`, `bgcolor: 'background.paper'`), not color literals. `src/index.css` holds only global base rules.
 - `public/icons.svg` — an SVG sprite. Icons are referenced as `<svg><use href="/icons.svg#github-icon" /></svg>` with `aria-hidden="true"`; add new symbols there rather than inlining paths.
-- `src/index.css` defines the theme as CSS custom properties on `:root` with a `@media (prefers-color-scheme: dark)` override block. Add colors as variables in both blocks, not as literals in component CSS.

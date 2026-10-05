@@ -18,7 +18,9 @@
 
 ### 型別定義
 
-以下的寫法符合專案的 `erasableSyntaxOnly` 規範：只用 union type，不用 `enum`。
+以下的寫法符合專案的 `erasableSyntaxOnly` 規範：只用 union type，不用 `enum`。程式裡的正本是 `src/types/index.ts`，兩邊不一致時以程式為準，並回頭修正這份文件。
+
+**單一欄位的槽位一律是選填（`?`）**，多欄位的槽位（`y[]`、`columns[]`）可以是空陣列。原因是在編輯模式裡新增的 widget 一開始是空的，之後才逐一拖入欄位。渲染時如果缺少必要的槽位，widget 會顯示「請設定…」的提示，不會報錯。
 
 ```ts
 type FieldRef = { header: string; code?: string };
@@ -64,42 +66,42 @@ type Widget = WidgetBase &
   (
     | {
         type: 'line';
-        encoding: { x: { field: FieldRef }; y: Measure[]; group?: { field: FieldRef } };
+        encoding: { x?: { field: FieldRef }; y: Measure[]; group?: { field: FieldRef } };
         options?: { area?: boolean; stacked?: boolean };
       }
     | {
         type: 'bar';
-        encoding: { x: { field: FieldRef }; y: Measure[]; group?: { field: FieldRef } };
+        encoding: { x?: { field: FieldRef }; y: Measure[]; group?: { field: FieldRef } };
         options?: { stacked?: boolean; horizontal?: boolean };
       }
     | {
         type: 'combo';
         encoding: {
-          x: { field: FieldRef };
+          x?: { field: FieldRef };
           y: Array<Measure & { mark: 'bar' | 'line'; axis: 'left' | 'right' }>;
         };
         options?: { stacked?: boolean };
       } // 只套用在長條的部分
     | {
         type: 'pie';
-        encoding: { category: { field: FieldRef }; value: Measure };
+        encoding: { category?: { field: FieldRef }; value?: Measure };
         options?: { donut?: boolean };
       }
     | {
         type: 'scatter';
         encoding: {
-          x: Measure;
-          y: Measure;
+          x?: Measure;
+          y?: Measure;
           color?: { field: FieldRef };
           detail?: { field: FieldRef };
         };
       }
     | {
         type: 'radar';
-        encoding: { x: { field: FieldRef }; y: Measure[]; group?: { field: FieldRef } };
+        encoding: { x?: { field: FieldRef }; y: Measure[]; group?: { field: FieldRef } };
       }
-    | { type: 'gauge'; encoding: { value: Measure }; options?: { min?: number; max?: number } }
-    | { type: 'kpi'; encoding: { value: Measure; trend?: { field: FieldRef } } }
+    | { type: 'gauge'; encoding: { value?: Measure }; options?: { min?: number; max?: number } }
+    | { type: 'kpi'; encoding: { value?: Measure; trend?: { field: FieldRef } } }
     | { type: 'table'; encoding: { columns: Array<{ field: FieldRef; agg?: Agg }> } }
   );
 

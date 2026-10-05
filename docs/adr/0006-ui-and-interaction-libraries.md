@@ -45,7 +45,7 @@
 ## 影響與風險
 
 - ⚠️ **`react-dnd` 已停止維護**：最後一個版本 16.0.1 發布於 2022-04。peer 依賴寫的是 `react >= 16.14`，裝在 React 19 上不會報錯，但沒有官方保證。
-- ⚠️ **`react-grid-layout` 和 `react-dnd` 搭配 React Compiler、StrictMode 是否正常，還沒有驗證。** 安裝後必須實際 build，並在 dev 和 preview 模式下操作拖拉。有問題時要先回報，不要自行換套件。
+- **`react-grid-layout` 和 `react-dnd` 搭配 React Compiler、StrictMode 已在 dev 模式驗證（2026-10-05）**：用無頭 Chrome 實際操作，欄位拖入槽位、拒絕不相容的拖放、拖動標題移動 widget 並寫回 `layout`，都正常，主控台沒有錯誤。production build（`npm run preview`）下還沒有操作驗證。
 - `react-grid-layout` 拖動 widget 用的是它自己的拖動機制，`react-dnd` 只負責「欄位 → 槽位」的拖放。兩者處理的拖動範圍要分開，避免事件互相干擾。
 - 程式碼開始 import MUI 之後，`vite build` 會出現大量 `[MODULE_LEVEL_DIRECTIVE]` 警告，來源是 MUI 檔案開頭的 `'use client'`。這只是雜訊，不影響執行，之後可以在 `vite.config.ts` 用 `onwarn` 過濾掉。
 - MUI X Charts 的圖表會自動填滿父容器的大小，所以放在可縮放的格線格子裡時，格子本身必須有明確的高度。
