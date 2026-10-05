@@ -15,7 +15,13 @@ There is no test runner configured. `npm run build` and `npm run lint` are the o
 
 ## Current state
 
-The app is still the unmodified Vite starter: `src/App.tsx` renders the template landing page (counter + Vite/React links), `src/main.tsx` mounts it under `StrictMode`. Despite the repo name there is no dashboard, routing, state management, data layer, or API client yet — any of those are greenfield decisions, not existing conventions to follow.
+The app is still the unmodified Vite starter: `src/App.tsx` renders the template landing page (counter + Vite/React links), `src/main.tsx` mounts it under `StrictMode`. No product code exists yet, but the design is decided — read these before implementing anything:
+
+- `CONTEXT.md` — domain glossary (Dataset, DataTable, Field, FieldRef, Widget, encoding slots, ratio fields…). Use these names in code.
+- `docs/adr/` — decisions 0001–0006: frontend-only storage (localStorage config + IndexedDB rows), ExcelJS parsing, field identity/rebinding, role & aggregation rules, the persisted JSON schema v1, and the library stack. Read 0005 before changing anything that is persisted.
+- `public/samples/` — the sample standardized workbook loaded by the "載入範例資料" button.
+
+All libraries from ADR 0006 are installed (`xlsx` was replaced by `exceljs`). Two are unmaintained — `exceljs` and `react-dnd` — so don't upgrade-hunt them; their behavior under React Compiler/StrictMode still has to be checked once real components use them. `exceljs` is ~930 KB minified: load it only via dynamic `import('exceljs')` at upload time, never a static import.
 
 ## Toolchain constraints
 
