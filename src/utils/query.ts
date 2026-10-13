@@ -181,6 +181,9 @@ export type CategoricalResult = {
   xField: Field;
   categories: string[];
   series: CategoricalSeries[];
+  // 每個分類不分組、用第一個量值對該分類全部資料列彙總的值，排序用（sortCategorical）。
+  // 不能拿各組的值相加：比率欄位相加沒有意義（80% + 120% ≠ 200%）。
+  categoryTotals: Array<number | null>;
   unweightedRatio: boolean;
 };
 
@@ -219,10 +222,16 @@ export function queryCategorical(
       }),
     })),
   );
-  return { xField, categories, series, unweightedRatio };
+  const first = resolved[0];
+  const byCategory = groupField ? groupRows(rows, [xField]) : buckets;
+  const categoryTotals = categories.map((category) => {
+    const bucket = byCategory.get(bucketKey([category]));
+    return first && bucket ? aggregate(bucket, first.field, first.agg) : null;
+  });
+  return { xField, categories, series, categoryTotals, unweightedRatio };
 }
 
-// 依第一個量值排序分類（有分組時用各組的合計），再只留前 limit 個；
+// 依第一個量值排序分類（有分組時用整個分類重新彙總的值，見 categoryTotals），再只留前 limit 個；
 // 用於排名類的長條圖。沒有值的分類排在最後。
 export function sortCategorical(
   result: CategoricalResult,
@@ -232,13 +241,7 @@ export function sortCategorical(
   if (!order && !limit) return result;
   let indexes = result.categories.map((_, i) => i);
   if (order) {
-    const first = result.series.filter((s) => s.measureIndex === 0);
-    const totals = indexes.map((i) =>
-      first.reduce<number | null>((sum, s) => {
-        const v = s.data[i];
-        return v === null ? sum : (sum ?? 0) + v;
-      }, null),
-    );
+    const totals = result.categoryTotals;
     const sign = order === 'asc' ? 1 : -1;
     indexes = indexes.sort((a, b) => {
       const va = totals[a];
@@ -251,6 +254,7 @@ export function sortCategorical(
   return {
     ...result,
     categories: indexes.map((i) => result.categories[i]),
+    categoryTotals: indexes.map((i) => result.categoryTotals[i]),
     series: result.series.map((s) => ({ ...s, data: indexes.map((i) => s.data[i]) })),
   };
 }
