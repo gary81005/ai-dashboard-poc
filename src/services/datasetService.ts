@@ -1,4 +1,4 @@
-// 資料集的載入、匯入、編輯與刪除流程，串起解析（parseWorkbook）、Supabase（datasets 表、
+// 資料集的讀取、匯入、編輯與刪除流程，串起解析（parseWorkbook）、Supabase（datasets 表、
 // datasetRows、sourceFiles）與兩個 store（ADR 0007）。
 //
 // UI（WorkbookActions、DatasetCard、TableFieldsAccordion…）只呼叫這裡，不直接碰儲存層。
@@ -11,7 +11,7 @@ import { SCHEMA_VERSION } from '../types/index.ts';
 import { parseWorkbook } from './parseWorkbook.ts';
 import { insertDatasetRows } from './datasetRows.ts';
 import type { Progress } from './datasetRows.ts';
-import { invalidateSession, sessionGuard } from './session.ts';
+import { sessionGuard } from './session.ts';
 import { removeSourceFiles, uploadSourceFile } from './sourceFiles.ts';
 import { supabase } from './supabase.ts';
 import { useAppStore } from '../store/appStore.ts';
@@ -25,38 +25,17 @@ function toDataset(record: { body: Json; schema_version: number }): Dataset {
   return migrateRecord<Dataset>(record.body, record.schema_version, '資料集');
 }
 
-// 登入後載入資料集清單（只有中繼資料，資料列等開啟儀表板時才載入），舊的在前。
-export async function loadDatasets(): Promise<void> {
-  const isCurrent = sessionGuard();
-  const { setDatasets, setDatasetsStatus } = useAppStore.getState();
-  setDatasetsStatus({ status: 'loading' });
-  try {
-    await cleanUpStaleUploads();
-    const { data, error } = await supabase
-      .from('datasets')
-      .select('body, schema_version')
-      .eq('status', 'ready')
-      .order('created_at');
-    if (!isCurrent()) return;
-    if (error) throw new Error(error.message);
-    setDatasets(data.map(toDataset));
-    setDatasetsStatus({ status: 'ready' });
-  } catch (error) {
-    if (!isCurrent()) return;
-    setDatasetsStatus({
-      status: 'error',
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
-
-// 登出時清掉記憶體裡上一位使用者的資料集與資料列，並讓他還在進行中的請求作廢。
-export function resetDatasets(): void {
-  invalidateSession();
-  const { setDatasets, setDatasetsStatus } = useAppStore.getState();
-  setDatasets([]);
-  setDatasetsStatus({ status: 'idle' });
-  useRowsStore.getState().clear();
+// 登入後由 services/userData.ts 載入資料集清單（只有中繼資料，資料列等開啟儀表板時才載入），舊的在前。
+// 順便清掉中斷的上傳。
+export async function fetchDatasets(): Promise<Dataset[]> {
+  await cleanUpStaleUploads();
+  const { data, error } = await supabase
+    .from('datasets')
+    .select('body, schema_version')
+    .eq('status', 'ready')
+    .order('created_at');
+  if (error) throw new Error(`載入資料集失敗：${error.message}`);
+  return data.map(toDataset);
 }
 
 async function cleanUpStaleUploads(): Promise<void> {

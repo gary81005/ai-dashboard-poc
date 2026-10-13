@@ -11,11 +11,21 @@
 
 ### 存放位置
 
+> [0007](0007-supabase-storage.md) 之後，存放位置改成 Supabase，**格式本身不變**：
+>
+> - `Dataset` 存在 `datasets.body`，`Dashboard` 存在 `dashboards.body`，一筆一個實體，形狀就是下面的 v1 型別。
+> - 版本記在每筆記錄的 `schema_version` 欄位，取代原本 persist 外層的 `version`。讀取時由 `utils/schema.ts` 的 `migrateRecord` 檢查與轉換。
+> - 資料列存在 `dataset_rows` 表，一個 Excel 列一筆。
+> - `activeDashboardId` 不再保存，重新整理後回到儀表板清單。
+> - 舊的 `ai-dashboard-poc` localStorage key 不再讀寫，app 啟動時直接刪掉，裡面的舊資料不搬。
+> - 匯出 / 匯入的 JSON 格式不變。
+>
+> 以下是 0001 時期的原始決定，留作紀錄。
+
 - localStorage key：`ai-dashboard-poc`，整份設定只存這一個 key。
 - 由 Zustand `persist` 寫入，外層包成 `{ "version": 1, "state": { … } }`。
-- 格式有破壞性修改時，把 `version` 加 1，並在 `migrate` 裡把舊格式轉成新格式。**不可以直接修改舊格式的欄位意義。**
-- 資料列**不**放在這裡。原本存在 IndexedDB 的 `dataset-rows:<datasetId>`，[0007](0007-supabase-storage.md) 之後改存 Supabase 的 `dataset_rows` 表。
-- [0007](0007-supabase-storage.md) 之後資料集也不再存在這個 key：`Dataset` 以同樣的 v1 形狀存在 Supabase 的 `datasets.body`，版本記在 `schema_version` 欄位，讀取時由 `utils/schema.ts` 檢查。這個 key 目前只剩儀表板，下一階段也會搬到 Supabase 的 `dashboards.body`。
+- 格式有破壞性修改時，把 `version` 加 1，並在 `migrate` 裡把舊格式轉成新格式。**不可以直接修改舊格式的欄位意義。**（這條規則在 0007 之後依然適用，改成調高 `SCHEMA_VERSION` 並在 `migrateRecord` 補上轉換。）
+- 資料列**不**放在這裡，而是存在 IndexedDB 的 `dataset-rows:<datasetId>`。
 
 ### 型別定義
 
@@ -117,6 +127,8 @@ type Dashboard = {
   widgets: Widget[];
 };
 
+// 0001 時期 persist 存進 localStorage 的整份狀態。0007 之後已移除，
+// 改成 datasets.body、dashboards.body 各存一筆。
 type PersistedState = {
   datasets: Dataset[];
   dashboards: Dashboard[];

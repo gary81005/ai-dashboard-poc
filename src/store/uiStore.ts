@@ -1,8 +1,9 @@
-// 不持久化的 UI 狀態：目前畫面、是否在編輯模式、選取中的 widget、全域提示。
+// 不持久化的 UI 狀態：目前畫面、是否在編輯模式、選取中的 widget、全域提示、離開前的確認。
 //
 // 沒有 router（ADR 0001），三個畫面用 view 切換；重新整理後會回到儀表板清單。
 
 import { create } from 'zustand';
+import { useAppStore } from './appStore.ts';
 
 export type View = 'dashboards' | 'datasets' | 'dashboard';
 
@@ -14,19 +15,30 @@ type UiState = {
   editing: boolean;
   selectedWidgetId: string | null;
   notice: Notice | null;
+  // 有未儲存的變更時，被擋下來的離開動作；App 的 UnsavedChangesDialog 決定儲存、捨棄或取消。
+  pendingLeave: (() => void) | null;
   navigate: (view: View) => void;
+  leave: (proceed: () => void) => void;
+  setPendingLeave: (proceed: (() => void) | null) => void;
   setEditing: (editing: boolean) => void;
   selectWidget: (widgetId: string | null) => void;
   notify: (notice: Notice | null) => void;
 };
 
-export const useUiStore = create<UiState>()((set) => ({
+export const useUiStore = create<UiState>()((set, get) => ({
   view: 'dashboards',
   editing: false,
   selectedWidgetId: null,
   notice: null,
+  pendingLeave: null,
   // 換頁時一律離開編輯模式並取消選取，避免帶著舊的選取狀態進到別的儀表板。
-  navigate: (view) => set({ view, editing: false, selectedWidgetId: null }),
+  navigate: (view) => get().leave(() => set({ view, editing: false, selectedWidgetId: null })),
+  // 離開目前儀表板的動作（換頁、登出）都經過這裡：沒有未儲存的變更就直接執行，否則先問使用者。
+  leave: (proceed) => {
+    if (useAppStore.getState().draftBase) set({ pendingLeave: proceed });
+    else proceed();
+  },
+  setPendingLeave: (pendingLeave) => set({ pendingLeave }),
   setEditing: (editing) => set({ editing, selectedWidgetId: null }),
   selectWidget: (widgetId) => set({ selectedWidgetId: widgetId }),
   notify: (notice) => set({ notice }),

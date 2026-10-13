@@ -1,6 +1,7 @@
 // 「載入範例資料」：下載 public/samples/ 的範例活頁簿，照一般上傳流程匯入，
 // 再依 constants/sampleDashboard.ts 建立範例儀表板，並設為目前開啟的儀表板。
 
+import { createDashboard } from './dashboardService.ts';
 import { importWorkbook } from './datasetService.ts';
 import type { Progress } from './datasetRows.ts';
 import type { Dashboard } from '../types/index.ts';
@@ -23,8 +24,7 @@ export async function loadSample(onProgress?: Progress): Promise<Dashboard> {
     onProgress,
   );
   const dashboard = createSampleDashboard(dataset.id);
-  const { addDashboard, setActiveDashboard } = useAppStore.getState();
-  addDashboard(dashboard);
-  setActiveDashboard(dashboard.id);
+  await createDashboard(dashboard);
+  useAppStore.getState().setActiveDashboard(dashboard.id);
   return dashboard;
 }

@@ -15,12 +15,13 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
+import { UnsavedChangesDialog } from './components/dashboard/UnsavedChangesDialog.tsx';
 import { DashboardListPage } from './pages/DashboardListPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
 import { DatasetLibraryPage } from './pages/DatasetLibraryPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { signOut } from './services/auth.ts';
-import { loadDatasets } from './services/datasetService.ts';
+import { loadUserData } from './services/userData.ts';
 import { useAppStore } from './store/appStore.ts';
 import { useAuthStore } from './store/authStore.ts';
 import { useUiStore } from './store/uiStore.ts';
@@ -31,41 +32,59 @@ function FullScreen({ children }: { children: ReactNode }) {
   );
 }
 
+// 全域提示（uiStore.notice）。登入頁也要顯示：session 過期時的提示是在登出之後才出現的。
+function GlobalNotice() {
+  const notice = useUiStore((s) => s.notice);
+  const notify = useUiStore((s) => s.notify);
+  return (
+    <Snackbar open={notice !== null} autoHideDuration={6000} onClose={() => notify(null)}>
+      {notice ? (
+        <Alert severity={notice.severity} variant='filled' onClose={() => notify(null)}>
+          {notice.message}
+        </Alert>
+      ) : undefined}
+    </Snackbar>
+  );
+}
+
 function App() {
   const authStatus = useAuthStore((s) => s.status);
   const email = useAuthStore((s) => s.user?.email);
   const view = useUiStore((s) => s.view);
   const navigate = useUiStore((s) => s.navigate);
-  const notice = useUiStore((s) => s.notice);
   const notify = useUiStore((s) => s.notify);
-  const datasetsStatus = useAppStore((s) => s.datasetsStatus);
+  const leave = useUiStore((s) => s.leave);
+  const loadStatus = useAppStore((s) => s.loadStatus);
   // 單一儀表板頁沒有自己的分頁，沿用「儀表板」分頁的反白。
   const tab = view === 'datasets' ? 'datasets' : 'dashboards';
 
-  if (authStatus === 'signedOut') return <LoginPage />;
-  // 登入後要等資料集清單載入（services/auth.ts 觸發），否則儀表板會誤判成「資料集遺失」。
-  if (
-    authStatus === 'loading' ||
-    datasetsStatus.status === 'idle' ||
-    datasetsStatus.status === 'loading'
-  ) {
+  if (authStatus === 'signedOut') {
+    return (
+      <>
+        <LoginPage />
+        <GlobalNotice />
+      </>
+    );
+  }
+  // 登入後要等資料集與儀表板載入（services/auth.ts 觸發），否則儀表板會誤判成「資料集遺失」。
+  if (authStatus === 'loading' || loadStatus.status === 'idle' || loadStatus.status === 'loading') {
     return (
       <FullScreen>
         <CircularProgress aria-label='載入中' />
       </FullScreen>
     );
   }
-  if (datasetsStatus.status === 'error') {
+  if (loadStatus.status === 'error') {
     return (
       <FullScreen>
-        <Alert severity='error' action={<Button onClick={() => void loadDatasets()}>重試</Button>}>
-          載入資料集失敗：{datasetsStatus.message}
+        <Alert severity='error' action={<Button onClick={() => void loadUserData()}>重試</Button>}>
+          {loadStatus.message}
         </Alert>
       </FullScreen>
     );
   }
 
-  // 登出後清空記憶體中的資料由 services/auth.ts 處理；儀表板暫時仍存在 localStorage，不會清掉。
+  // 登出後清空記憶體中的資料由 services/auth.ts 處理。有未儲存的變更時，leave 會先問使用者。
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -98,7 +117,7 @@ function App() {
             <Typography variant='body2' color='text.secondary'>
               {email}
             </Typography>
-            <Button onClick={() => void handleSignOut()}>登出</Button>
+            <Button onClick={() => leave(() => void handleSignOut())}>登出</Button>
           </Box>
         </Toolbar>
       </AppBar>
@@ -107,13 +126,8 @@ function App() {
         {view === 'datasets' && <DatasetLibraryPage />}
         {view === 'dashboard' && <DashboardPage />}
       </Box>
-      <Snackbar open={notice !== null} autoHideDuration={6000} onClose={() => notify(null)}>
-        {notice ? (
-          <Alert severity={notice.severity} variant='filled' onClose={() => notify(null)}>
-            {notice.message}
-          </Alert>
-        ) : undefined}
-      </Snackbar>
+      <UnsavedChangesDialog />
+      <GlobalNotice />
     </Box>
   );
 }

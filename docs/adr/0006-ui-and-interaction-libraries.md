@@ -18,7 +18,7 @@
 | 資料表格            | `@mui/x-data-grid` 9.14（MIT 免費版）                 | peer 依賴支援 MUI 9 和 React 19                       |
 | 格線版面            | `react-grid-layout` 2.2.4                             | 版面格式 `{i,x,y,w,h}` 直接存進設定 JSON              |
 | 欄位拖放            | `react-dnd` 16.0.1 + `react-dnd-html5-backend` 16.0.1 | 只用 hooks API（`useDrag` / `useDrop`）               |
-| 狀態與 localStorage | `zustand` 5.0（含 `persist`）                         | 見 [0001](0001-frontend-only-storage.md)              |
+| 狀態與 localStorage | `zustand` 5.0（`persist` 已不用）                     | 見 [0007](0007-supabase-storage.md)                   |
 | IndexedDB           | ~~`idb-keyval` 6.3~~                                  | 已由 [0007](0007-supabase-storage.md) 移除            |
 | 日期                | `dayjs` 1.11（含 `utc` plugin）                       | 見 [0002](0002-excel-parsing-exceljs.md)              |
 | Excel 解析          | `exceljs` 4.4.0                                       | 取代 `xlsx`，見 [0002](0002-excel-parsing-exceljs.md) |
@@ -57,4 +57,4 @@
 - **加裝 MUI X Charts Pro / Premium**：沒有授權金鑰會顯示浮水印，展示時觀感很差；購買授權又超出 POC 的預算。
 - **欄位拖放用 @dnd-kit 或瀏覽器原生拖放 API**：最後選了 react-dnd。
 - **格線版面用 gridstack.js 或自己實作**：gridstack 不是 React 原生套件，需要額外包一層；自己實作成本太高。
-- **狀態管理用 `useReducer` + Context 或 Redux Toolkit**：Zustand 的 `persist` 直接解決「JSON 存 localStorage + 版本轉換」這兩個需求，套件也最輕。
+- **狀態管理用 `useReducer` + Context 或 Redux Toolkit**：Zustand 的 `persist` 直接解決「JSON 存 localStorage + 版本轉換」這兩個需求，套件也最輕。（[0007](0007-supabase-storage.md) 改存 Supabase 後已不用 `persist`，Zustand 只當記憶體裡的 store。）

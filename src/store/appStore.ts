@@ -1,53 +1,60 @@
-// 設定的 store：資料集中繼資料 + 儀表板（ADR 0005、0007）。
+// 設定的 store：資料集中繼資料 + 儀表板（ADR 0005、0007）。不持久化。
 //
-// 資料集存在 Supabase，登入後由 services/datasetService.ts 載入並寫回，這裡只是記憶體中的副本。
-// 儀表板暫時仍由 Zustand persist 寫進 localStorage 的單一 key；partialize 只挑出儀表板，
-// action 函式和資料集都不會被存進去。
+// 兩者都存在 Supabase，登入後由 services/userData.ts 載入，這裡只是記憶體中的副本；
+// 寫回資料庫由 services/datasetService.ts、services/dashboardService.ts 負責。
 // 所有更新都是不可變更新（回傳新物件），React 才能正確偵測變化。
 // 資料列不在這裡，而是在 rowsStore（從 Supabase 的 dataset_rows 載入）。
+//
+// 儀表板內容（版面、widget、名稱、資料來源）要手動儲存：第一次修改時把修改前的版本記在 draftBase，
+// draftBase 不是 null 就代表目前開啟的儀表板有未儲存的變更。
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type {
   Dashboard,
   Dataset,
   DataTable,
   Field,
   LayoutItem,
-  PersistedState,
   Role,
   Widget,
 } from '../types/index.ts';
-import { SCHEMA_VERSION } from '../types/index.ts';
-
-export const STORAGE_KEY = 'ai-dashboard-poc';
 
 type FieldPatch = { role?: Role; ratio?: boolean };
 
-// 資料集清單的載入狀態。idle = 尚未登入或剛登出。
-export type DatasetsStatus =
+// 資料集與儀表板的載入狀態。idle = 尚未登入或剛登出。
+export type LoadStatus =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'ready' }
   | { status: 'error'; message: string };
 
-type LocalState = Omit<PersistedState, 'datasets'>;
-
-type AppState = PersistedState & {
-  datasetsStatus: DatasetsStatus;
+type AppState = {
+  datasets: Dataset[];
+  dashboards: Dashboard[];
+  activeDashboardId: string | null;
+  // 目前開啟的儀表板最後一次儲存的版本；沒有未儲存的變更時是 null。
+  draftBase: Dashboard | null;
+  // 存檔進行中：頁面與離開確認對話框共用，存檔期間兩邊的「儲存」「捨棄」都不能再按。
+  saving: boolean;
+  loadStatus: LoadStatus;
+  setLoadStatus: (status: LoadStatus) => void;
   setDatasets: (datasets: Dataset[]) => void;
-  setDatasetsStatus: (status: DatasetsStatus) => void;
   addDataset: (dataset: Dataset) => void;
   removeDataset: (datasetId: string) => void;
   renameDataset: (datasetId: string, name: string) => void;
   replaceDataset: (dataset: Dataset) => void;
   setTableHidden: (datasetId: string, tableKey: string, hidden: boolean) => void;
   updateField: (datasetId: string, tableKey: string, header: string, patch: FieldPatch) => void;
+  setDashboards: (dashboards: Dashboard[]) => void;
   addDashboard: (dashboard: Dashboard) => void;
   removeDashboard: (dashboardId: string) => void;
+  setActiveDashboard: (dashboardId: string | null) => void;
+  setDraftBase: (dashboard: Dashboard | null) => void;
+  setSaving: (saving: boolean) => void;
+  discardChanges: () => void;
+  // 以下都是儀表板內容的修改，會標記為未儲存。
   renameDashboard: (dashboardId: string, name: string) => void;
   replaceDashboard: (dashboard: Dashboard) => void;
-  setActiveDashboard: (dashboardId: string | null) => void;
   updateLayout: (dashboardId: string, layout: LayoutItem[]) => void;
   addWidget: (dashboardId: string, widget: Widget, layoutItem: LayoutItem) => void;
   updateWidget: (dashboardId: string, widget: Widget) => void;
@@ -87,109 +94,97 @@ function mapTable(
   );
 }
 
-// 只替換指定的儀表板；每次修改都更新 updatedAt（儀表板清單會顯示）。
-function mapDashboard(
-  dashboards: Dashboard[],
+// 修改指定儀表板的內容：每次修改都更新 updatedAt（儀表板清單會顯示），
+// 第一次修改時把修改前的版本記成 draftBase。
+function editDashboard(
+  s: AppState,
   dashboardId: string,
   update: (dashboard: Dashboard) => Partial<Dashboard>,
-): Dashboard[] {
-  return dashboards.map((d) =>
-    d.id === dashboardId ? { ...d, ...update(d), updatedAt: new Date().toISOString() } : d,
-  );
+): Pick<AppState, 'dashboards' | 'draftBase'> {
+  const current = s.dashboards.find((d) => d.id === dashboardId);
+  return {
+    dashboards: s.dashboards.map((d) =>
+      d.id === dashboardId ? { ...d, ...update(d), updatedAt: new Date().toISOString() } : d,
+    ),
+    draftBase: s.draftBase ?? current ?? null,
+  };
 }
 
-export const useAppStore = create<AppState>()(
-  persist(
-    (set) => ({
-      datasets: [],
-      dashboards: [],
-      activeDashboardId: null,
-      datasetsStatus: { status: 'idle' },
+export const useAppStore = create<AppState>()((set) => ({
+  datasets: [],
+  dashboards: [],
+  activeDashboardId: null,
+  draftBase: null,
+  saving: false,
+  loadStatus: { status: 'idle' },
 
-      setDatasets: (datasets) => set({ datasets }),
-      setDatasetsStatus: (datasetsStatus) => set({ datasetsStatus }),
-      addDataset: (dataset) => set((s) => ({ datasets: [...s.datasets, dataset] })),
-      removeDataset: (datasetId) =>
-        set((s) => ({ datasets: s.datasets.filter((d) => d.id !== datasetId) })),
-      renameDataset: (datasetId, name) =>
-        set((s) => ({
-          datasets: s.datasets.map((d) => (d.id === datasetId ? { ...d, name } : d)),
-        })),
-      replaceDataset: (dataset) =>
-        set((s) => ({ datasets: s.datasets.map((d) => (d.id === dataset.id ? dataset : d)) })),
-      setTableHidden: (datasetId, tableKey, hidden) =>
-        set((s) => ({
-          datasets: mapTable(s.datasets, datasetId, tableKey, (t) => ({ ...t, hidden })),
-        })),
-      updateField: (datasetId, tableKey, header, patch) =>
-        set((s) => ({
-          datasets: mapTable(s.datasets, datasetId, tableKey, (t) => ({
-            ...t,
-            fields: t.fields.map((f) => (f.header === header ? patchField(f, patch) : f)),
-          })),
-        })),
+  setLoadStatus: (loadStatus) => set({ loadStatus }),
+  setDatasets: (datasets) => set({ datasets }),
+  addDataset: (dataset) => set((s) => ({ datasets: [...s.datasets, dataset] })),
+  removeDataset: (datasetId) =>
+    set((s) => ({ datasets: s.datasets.filter((d) => d.id !== datasetId) })),
+  renameDataset: (datasetId, name) =>
+    set((s) => ({
+      datasets: s.datasets.map((d) => (d.id === datasetId ? { ...d, name } : d)),
+    })),
+  replaceDataset: (dataset) =>
+    set((s) => ({ datasets: s.datasets.map((d) => (d.id === dataset.id ? dataset : d)) })),
+  setTableHidden: (datasetId, tableKey, hidden) =>
+    set((s) => ({
+      datasets: mapTable(s.datasets, datasetId, tableKey, (t) => ({ ...t, hidden })),
+    })),
+  updateField: (datasetId, tableKey, header, patch) =>
+    set((s) => ({
+      datasets: mapTable(s.datasets, datasetId, tableKey, (t) => ({
+        ...t,
+        fields: t.fields.map((f) => (f.header === header ? patchField(f, patch) : f)),
+      })),
+    })),
 
-      addDashboard: (dashboard) => set((s) => ({ dashboards: [...s.dashboards, dashboard] })),
-      removeDashboard: (dashboardId) =>
-        set((s) => ({
-          dashboards: s.dashboards.filter((d) => d.id !== dashboardId),
-          activeDashboardId: s.activeDashboardId === dashboardId ? null : s.activeDashboardId,
-        })),
-      renameDashboard: (dashboardId, name) =>
-        set((s) => ({ dashboards: mapDashboard(s.dashboards, dashboardId, () => ({ name })) })),
-      replaceDashboard: (dashboard) =>
-        set((s) => ({
-          dashboards: mapDashboard(s.dashboards, dashboard.id, () => dashboard),
-        })),
-      setActiveDashboard: (dashboardId) => set({ activeDashboardId: dashboardId }),
-      updateLayout: (dashboardId, layout) =>
-        set((s) => ({ dashboards: mapDashboard(s.dashboards, dashboardId, () => ({ layout })) })),
-      addWidget: (dashboardId, widget, layoutItem) =>
-        set((s) => ({
-          dashboards: mapDashboard(s.dashboards, dashboardId, (d) => ({
-            widgets: [...d.widgets, widget],
-            layout: [...d.layout, layoutItem],
-          })),
-        })),
-      updateWidget: (dashboardId, widget) =>
-        set((s) => ({
-          dashboards: mapDashboard(s.dashboards, dashboardId, (d) => ({
-            widgets: d.widgets.map((w) => (w.id === widget.id ? widget : w)),
-          })),
-        })),
-      removeWidget: (dashboardId, widgetId) =>
-        set((s) => ({
-          dashboards: mapDashboard(s.dashboards, dashboardId, (d) => ({
-            widgets: d.widgets.filter((w) => w.id !== widgetId),
-            layout: d.layout.filter((item) => item.i !== widgetId),
-          })),
-        })),
-    }),
-    {
-      name: STORAGE_KEY,
-      version: SCHEMA_VERSION,
-      partialize: (s): LocalState => ({
-        dashboards: s.dashboards,
-        activeDashboardId: s.activeDashboardId,
-      }),
-      // 改用 Supabase 之前存下的設定裡還有 datasets，讀取時忽略，以資料庫為準。
-      // localStorage 是空的時候 persisted 是 undefined。
-      merge: (persisted, current) => {
-        const local = persisted as Partial<LocalState> | undefined;
-        return {
-          ...current,
-          dashboards: local?.dashboards ?? current.dashboards,
-          activeDashboardId: local?.activeDashboardId ?? current.activeDashboardId,
-        };
-      },
-      migrate: (persisted, version) => {
-        // 目前只有 v1，沒有舊格式要轉換；之後改版時在這裡依 version 逐步轉換。
-        // 遇到比目前程式還新的格式就丟錯，不要用舊邏輯硬讀，以免誤解欄位意義。
-        if (version > SCHEMA_VERSION) {
-          throw new Error(`設定格式 v${version} 比目前程式支援的 v${SCHEMA_VERSION} 還新`);
-        }
-        return persisted as LocalState;
-      },
-    },
-  ),
-);
+  setDashboards: (dashboards) => set({ dashboards, activeDashboardId: null, draftBase: null }),
+  addDashboard: (dashboard) => set((s) => ({ dashboards: [...s.dashboards, dashboard] })),
+  removeDashboard: (dashboardId) =>
+    set((s) => ({
+      dashboards: s.dashboards.filter((d) => d.id !== dashboardId),
+      activeDashboardId: s.activeDashboardId === dashboardId ? null : s.activeDashboardId,
+    })),
+  setActiveDashboard: (dashboardId) => set({ activeDashboardId: dashboardId, draftBase: null }),
+  setDraftBase: (draftBase) => set({ draftBase }),
+  setSaving: (saving) => set({ saving }),
+  // 還原成最後一次儲存的版本。
+  discardChanges: () =>
+    set((s) =>
+      s.draftBase
+        ? {
+            dashboards: s.dashboards.map((d) => (d.id === s.draftBase?.id ? s.draftBase : d)),
+            draftBase: null,
+          }
+        : {},
+    ),
+
+  renameDashboard: (dashboardId, name) =>
+    set((s) => editDashboard(s, dashboardId, () => ({ name }))),
+  replaceDashboard: (dashboard) => set((s) => editDashboard(s, dashboard.id, () => dashboard)),
+  updateLayout: (dashboardId, layout) =>
+    set((s) => editDashboard(s, dashboardId, () => ({ layout }))),
+  addWidget: (dashboardId, widget, layoutItem) =>
+    set((s) =>
+      editDashboard(s, dashboardId, (d) => ({
+        widgets: [...d.widgets, widget],
+        layout: [...d.layout, layoutItem],
+      })),
+    ),
+  updateWidget: (dashboardId, widget) =>
+    set((s) =>
+      editDashboard(s, dashboardId, (d) => ({
+        widgets: d.widgets.map((w) => (w.id === widget.id ? widget : w)),
+      })),
+    ),
+  removeWidget: (dashboardId, widgetId) =>
+    set((s) =>
+      editDashboard(s, dashboardId, (d) => ({
+        widgets: d.widgets.filter((w) => w.id !== widgetId),
+        layout: d.layout.filter((item) => item.i !== widgetId),
+      })),
+    ),
+}));

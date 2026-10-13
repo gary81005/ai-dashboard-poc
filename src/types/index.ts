@@ -1,7 +1,7 @@
-// 持久化設定的型別：Supabase 的 datasets.body／dashboards.body（儀表板暫時仍在 localStorage）
-// 與匯出的 JSON 都是這個形狀（詳見 docs/adr/0005、0007）。
+// 持久化設定的型別：Supabase 的 datasets.body／dashboards.body 與匯出的 JSON 都是這個形狀
+// （詳見 docs/adr/0005、0007）。
 // 這裡是格式的「正本」。修改任何欄位的意義，都必須調高 SCHEMA_VERSION，
-// 並在 utils/schema.ts（資料庫記錄）與 store/appStore.ts（localStorage）的 migrate 補上舊格式的轉換。
+// 並在 utils/schema.ts 的 migrateRecord 補上舊格式的轉換。
 
 export const SCHEMA_VERSION = 1;
 
@@ -127,12 +127,6 @@ export type Dashboard = {
   updatedAt: string;
   layout: LayoutItem[];
   widgets: Widget[];
-};
-
-export type PersistedState = {
-  datasets: Dataset[];
-  dashboards: Dashboard[];
-  activeDashboardId: string | null;
 };
 
 // 資料列存在 Supabase 的 dataset_rows 表（services/datasetRows.ts），不放進上面的設定。

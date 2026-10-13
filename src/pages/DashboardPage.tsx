@@ -2,9 +2,12 @@
 //   - 檢視模式：只顯示格線上的 widget（DashboardGrid），可切換資料來源、匯出 JSON
 //   - 編輯模式：EditWorkspace 三欄版面 = 格線｜欄位清單｜元件設定，可拖拉欄位、新增與移動元件
 //
+// 兩種模式下的修改（含檢視模式的篩選、切換資料來源）都先只存在記憶體，按「儲存」才寫進 Supabase
+// （ADR 0007）。換頁、登出時的提醒由 uiStore.leave 處理，關閉或重新整理分頁時用 beforeunload 提醒。
+//
 // 結構：DashboardPage（標題列與對話框）→ DashboardContent（等資料列載入）→ DashboardGrid 或 EditWorkspace。
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import Alert from '@mui/material/Alert';
@@ -22,6 +25,7 @@ import { AddWidgetButton } from '../components/editor/AddWidgetButton.tsx';
 import { FieldPanel } from '../components/editor/FieldPanel.tsx';
 import { WidgetEditor } from '../components/editor/WidgetEditor.tsx';
 import { useDatasetRows } from '../hooks/useDatasetRows.ts';
+import { saveActiveDashboard } from '../services/dashboardService.ts';
 import { downloadJson } from '../services/download.ts';
 import { useAppStore } from '../store/appStore.ts';
 import { useRowsStore } from '../store/rowsStore.ts';
@@ -36,7 +40,29 @@ export function DashboardPage() {
   const renameDashboard = useAppStore((s) => s.renameDashboard);
   const dashboard = useAppStore((s) => s.dashboards.find((d) => d.id === s.activeDashboardId));
   const dataset = useAppStore((s) => s.datasets.find((d) => d.id === dashboard?.datasetId));
+  const dirty = useAppStore((s) => s.draftBase !== null);
+  const discardChanges = useAppStore((s) => s.discardChanges);
+  const notify = useUiStore((s) => s.notify);
   const [rebinding, setRebinding] = useState(false);
+  const saving = useAppStore((s) => s.saving);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
+  const handleSave = async () => {
+    try {
+      await saveActiveDashboard();
+    } catch (error) {
+      notify({
+        severity: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
 
   if (!dashboard) {
     return (
@@ -79,6 +105,20 @@ export function DashboardPage() {
           </Button>
         )}
         {dataset && editing && <AddWidgetButton dashboard={dashboard} />}
+        {dirty && <Chip color='warning' variant='outlined' label='未儲存' />}
+        {dirty && (
+          <Button color='inherit' disabled={saving} onClick={discardChanges}>
+            捨棄變更
+          </Button>
+        )}
+        <Button
+          variant='contained'
+          disabled={!dirty}
+          loading={saving}
+          onClick={() => void handleSave()}
+        >
+          儲存
+        </Button>
         {dataset && (
           <Button variant={editing ? 'contained' : 'outlined'} onClick={() => setEditing(!editing)}>
             {editing ? '完成編輯' : '編輯'}

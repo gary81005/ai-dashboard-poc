@@ -14,8 +14,9 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
 import Typography from '@mui/material/Typography';
+import { createDashboard, deleteDashboard } from '../../services/dashboardService.ts';
 import { downloadJson } from '../../services/download.ts';
-import { useAppStore } from '../../store/appStore.ts';
+import { useUiStore } from '../../store/uiStore.ts';
 import type { Dashboard, Dataset } from '../../types/index.ts';
 import { buildExport, cloneDashboard } from '../../utils/dashboardTransfer.ts';
 
@@ -23,11 +24,20 @@ type Props = { dashboard: Dashboard; dataset: Dataset | undefined; onOpen: () =>
 
 export function DashboardCard({ dashboard, dataset, onOpen }: Props) {
   const [confirming, setConfirming] = useState(false);
-  const addDashboard = useAppStore((s) => s.addDashboard);
-  const removeDashboard = useAppStore((s) => s.removeDashboard);
+  const notify = useUiStore((s) => s.notify);
 
+  const run = async (action: () => Promise<void>) => {
+    try {
+      await action();
+    } catch (error) {
+      notify({
+        severity: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  };
   const handleDuplicate = () =>
-    addDashboard(cloneDashboard(dashboard, { name: `${dashboard.name}（複本）` }));
+    run(() => createDashboard(cloneDashboard(dashboard, { name: `${dashboard.name}（複本）` })));
   const handleExport = () =>
     downloadJson(`${dashboard.name}.dashboard.json`, buildExport(dashboard, dataset));
 
@@ -48,7 +58,7 @@ export function DashboardCard({ dashboard, dataset, onOpen }: Props) {
         </CardContent>
       </CardActionArea>
       <CardActions>
-        <Button size='small' onClick={handleDuplicate}>
+        <Button size='small' onClick={() => void handleDuplicate()}>
           複製
         </Button>
         <Button size='small' onClick={handleExport}>
@@ -64,7 +74,7 @@ export function DashboardCard({ dashboard, dataset, onOpen }: Props) {
         <DialogTitle>刪除「{dashboard.name}」？</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            儀表板設定會從這個瀏覽器移除，資料集不受影響。若需要保留，請先匯出 JSON。
+            儀表板設定會從雲端刪除，資料集不受影響。若需要保留，請先匯出 JSON。
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -74,7 +84,7 @@ export function DashboardCard({ dashboard, dataset, onOpen }: Props) {
             variant='contained'
             onClick={() => {
               setConfirming(false);
-              removeDashboard(dashboard.id);
+              void run(() => deleteDashboard(dashboard.id));
             }}
           >
             刪除

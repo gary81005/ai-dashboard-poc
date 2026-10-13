@@ -12,6 +12,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import { createDashboard } from '../../services/dashboardService.ts';
 import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { DashboardExport } from '../../utils/dashboardTransfer.ts';
@@ -24,9 +25,10 @@ type Props = { data: DashboardExport | null; onClose: () => void };
 
 export function ImportDashboardDialog({ data, onClose }: Props) {
   const datasets = useAppStore((s) => s.datasets);
-  const addDashboard = useAppStore((s) => s.addDashboard);
   const setActiveDashboard = useAppStore((s) => s.setActiveDashboard);
   const navigate = useUiStore((s) => s.navigate);
+  const notify = useUiStore((s) => s.notify);
+  const [importing, setImporting] = useState(false);
   const [datasetId, setDatasetId] = useState('');
   const selectedId = datasetId || datasets.at(-1)?.id || '';
   const dataset = datasets.find((d) => d.id === selectedId);
@@ -34,10 +36,21 @@ export function ImportDashboardDialog({ data, onClose }: Props) {
   const issues =
     data && dataset ? findIssues(rebindDashboard(data.dashboard, dataset), dataset) : [];
 
-  const handleImport = () => {
+  const handleImport = async () => {
     if (!data || !dataset) return;
     const dashboard = instantiateImport(data, dataset);
-    addDashboard(dashboard);
+    setImporting(true);
+    try {
+      await createDashboard(dashboard);
+    } catch (error) {
+      notify({
+        severity: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    } finally {
+      setImporting(false);
+    }
     setActiveDashboard(dashboard.id);
     setDatasetId('');
     onClose();
@@ -74,7 +87,12 @@ export function ImportDashboardDialog({ data, onClose }: Props) {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>取消</Button>
-        <Button variant='contained' disabled={!dataset} onClick={handleImport}>
+        <Button
+          variant='contained'
+          disabled={!dataset}
+          loading={importing}
+          onClick={() => void handleImport()}
+        >
           匯入
         </Button>
       </DialogActions>

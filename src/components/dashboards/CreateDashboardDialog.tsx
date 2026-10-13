@@ -10,6 +10,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import { createDashboard } from '../../services/dashboardService.ts';
 import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import { createId } from '../../utils/ids.ts';
@@ -18,24 +19,36 @@ type Props = { open: boolean; onClose: () => void };
 
 export function CreateDashboardDialog({ open, onClose }: Props) {
   const datasets = useAppStore((s) => s.datasets);
-  const addDashboard = useAppStore((s) => s.addDashboard);
   const setActiveDashboard = useAppStore((s) => s.setActiveDashboard);
   const navigate = useUiStore((s) => s.navigate);
   const setEditing = useUiStore((s) => s.setEditing);
+  const notify = useUiStore((s) => s.notify);
+  const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [datasetId, setDatasetId] = useState('');
   const selectedId = datasetId || datasets.at(-1)?.id || '';
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const id = createId('db');
-    addDashboard({
-      id,
-      name: name.trim() || '未命名儀表板',
-      datasetId: selectedId,
-      updatedAt: new Date().toISOString(),
-      layout: [],
-      widgets: [],
-    });
+    setCreating(true);
+    try {
+      await createDashboard({
+        id,
+        name: name.trim() || '未命名儀表板',
+        datasetId: selectedId,
+        updatedAt: new Date().toISOString(),
+        layout: [],
+        widgets: [],
+      });
+    } catch (error) {
+      notify({
+        severity: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      });
+      return;
+    } finally {
+      setCreating(false);
+    }
     setActiveDashboard(id);
     setName('');
     setDatasetId('');
@@ -76,7 +89,12 @@ export function CreateDashboardDialog({ open, onClose }: Props) {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>取消</Button>
-        <Button variant='contained' disabled={!selectedId} onClick={handleCreate}>
+        <Button
+          variant='contained'
+          disabled={!selectedId}
+          loading={creating}
+          onClick={() => void handleCreate()}
+        >
           建立並開始編輯
         </Button>
       </DialogActions>

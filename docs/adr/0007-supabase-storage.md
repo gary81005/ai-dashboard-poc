@@ -1,6 +1,6 @@
 # 0007. 改用 Supabase 儲存資料與設定
 
-- 狀態：已採納（取代 [0001](0001-frontend-only-storage.md)），分階段實作：已完成基礎建設、登入、資料集（資料集、資料列、原始檔已改存 Supabase，IndexedDB 已移除）；儀表板仍存在 localStorage，於下一階段切換
+- 狀態：已採納（取代 [0001](0001-frontend-only-storage.md)），分階段實作：基礎建設、登入、資料集、儀表板都已改存 Supabase，localStorage 與 IndexedDB 的資料存取已全部移除
 - 日期：2026-10-13
 
 ## 背景
@@ -47,8 +47,9 @@ Schema 的正本是 `supabase/migrations/`，前端型別由 `npm run db:types` 
 
 - **Supabase 是唯一的資料來源。** 拿掉 Zustand persist（localStorage）和 `idb-keyval`（IndexedDB），不做離線快取或同步。`uiStore` 的導覽狀態不受影響。唯一留在瀏覽器的是 supabase-js 自己存在 localStorage 的登入 session。
 - 登入後只載入 `datasets`、`dashboards` 的清單；開啟儀表板時才分頁撈資料列，放進記憶體裡的 `rowsStore`。登出時清空 `appStore` 和 `rowsStore`。
-- **儀表板內容要手動按「儲存」。** 版面、widget、欄位綁定的變更先只存在記憶體，標示為「未儲存」；在 app 內切換畫面時提醒，關閉或重新整理分頁時用 `beforeunload` 提醒。存檔失敗時跳 Snackbar，維持「未儲存」狀態，再按一次就重試。
-- 清單層級的操作立即寫入：新增、複製、刪除、改名儀表板，以及上傳、刪除資料集。
+- **儀表板內容要手動按「儲存」。** 版面、widget、欄位綁定、名稱的變更先只存在記憶體，標示為「未儲存」；在 app 內切換畫面或登出時提醒，關閉或重新整理分頁時用 `beforeunload` 提醒。存檔失敗時跳 Snackbar，維持「未儲存」狀態，再按一次就重試。存檔期間「儲存」「捨棄」都不能再按，同時觸發的存檔共用同一次請求。
+- session 過期或在別的分頁登出時來不及詢問，未儲存的變更會直接捨棄，並跳出「登入已失效，未儲存的變更已捨棄」的提示。
+- 清單層級的操作立即寫入：新增、複製、匯入、刪除儀表板，以及上傳、刪除資料集。儀表板的名稱只能在編輯模式裡修改，跟著內容一起儲存。
 - 匯出 / 匯入 JSON 保留，格式不變（[0005](0005-dashboard-config-schema-v1.md)），匯入時寫進資料庫。「載入範例資料」走和上傳完全一樣的流程。
 
 ### 開發流程與部署
@@ -63,8 +64,7 @@ Schema 的正本是 `supabase/migrations/`，前端型別由 `npm run db:types` 
 - 每次重新整理都要從網路重新抓資料列，大的資料集載入會比讀 IndexedDB 慢。demo 規模可以接受；真的變慢時再考慮快取，或把彙總搬到資料庫端。
 - 存取資料庫一定要經過 `services/`，UI 不直接 import Supabase client。0001 預留的接點（store 的儲存層和資料集讀寫模組）就是這次替換的範圍。
 - 沒有網路就無法使用。
-- 本機的舊資料（localStorage、IndexedDB）不搬，需要的話用匯出 / 匯入 JSON 或重新上傳。
-- 分階段期間的已知限制：資料集已經按帳號隔離，儀表板卻還存在 localStorage，由同一個瀏覽器的所有帳號共用。換帳號登入會看到前一位的儀表板，而且都顯示「資料集遺失」。儀表板改存 Supabase 後就會消失。
+- 本機的舊資料（localStorage、IndexedDB）不搬，需要的話用匯出 / 匯入 JSON 或重新上傳。舊的 `ai-dashboard-poc` localStorage key 在 app 啟動時直接刪掉，避免留著上一位使用者的資料。
 
 ## 考慮過的其他方案
 

@@ -20,17 +20,17 @@ There is no test runner configured. `npm run build` and `npm run lint` are the o
 A personal dashboard builder: upload a standardized Excel workbook, drag columns onto chart slots, arrange widgets on a grid. There is no backend of our own: the browser talks to Supabase (Auth, Postgres, Storage) directly. Read these before changing behavior:
 
 - `CONTEXT.md` — domain glossary (Dataset, DataTable, Field, FieldRef, Widget, encoding slots, ratio fields…). Use these names in code.
-- `docs/adr/` — decisions 0001–0007: frontend-only storage (localStorage config + IndexedDB rows), ExcelJS parsing, field identity/rebinding, role & aggregation rules, the persisted JSON schema v1, the library stack, and the move to Supabase storage (0007, superseding 0001). 0007 is being implemented in stages: infrastructure, magic-link login and datasets are done — datasets, rows and source files live in Supabase, loaded after login. Dashboards still persist to localStorage until the next stage. Read 0005 before changing anything that is persisted.
+- `docs/adr/` — decisions 0001–0007: frontend-only storage (localStorage config + IndexedDB rows), ExcelJS parsing, field identity/rebinding, role & aggregation rules, the persisted JSON schema v1, the library stack, and the move to Supabase storage (0007, superseding 0001). 0007 is implemented: after magic-link login, datasets, rows, source files and dashboards all live in Supabase; nothing app-level is stored in the browser any more. Dashboard content edits are kept in memory until the user presses 儲存 (see `appStore.draftBase`). Read 0005 before changing anything that is persisted.
 - `public/samples/` — the sample standardized workbook loaded by the "載入範例資料" button.
 
 Two dependencies are unmaintained — `exceljs` and `react-dnd` — so don't upgrade-hunt them. `exceljs` is ~930 KB minified: load it only via dynamic `import('exceljs')` (see `services/parseWorkbook.ts`), never a static import.
 
 ## Source layout
 
-- `src/types/` — the persisted config shape (source of truth for ADR 0005). Changing a field's meaning requires bumping `SCHEMA_VERSION` and a `migrate` step in `store/appStore.ts`.
+- `src/types/` — the persisted config shape (source of truth for ADR 0005). Changing a field's meaning requires bumping `SCHEMA_VERSION` and a conversion step in `utils/schema.ts` (`migrateRecord`), which runs on every record read from Supabase.
 - `src/utils/` — pure logic, no React: field matching (`fields.ts`), role/ratio inference, the aggregation engine (`query.ts`), number formatting.
 - `src/services/` — I/O: the Supabase client, auth, Excel parsing, `dataset_rows` and Storage access, dataset load/import/edit/delete, sample loading. UI never imports the Supabase client directly.
-- `src/store/` — Zustand stores. `appStore` holds datasets (in-memory copy of Supabase) and dashboards (still persisted to one localStorage key); `rowsStore` caches rows fetched from Supabase; `authStore` mirrors the Supabase session; `uiStore` holds navigation (there is no router) and the global Snackbar notice.
+- `src/store/` — Zustand stores. None are persisted. `appStore` is the in-memory copy of the user's datasets and dashboards, plus `draftBase` (the last-saved version of the open dashboard; non-null means unsaved changes); `rowsStore` caches rows fetched from Supabase; `authStore` mirrors the Supabase session; `uiStore` holds navigation (there is no router — `navigate`/`leave` prompt before leaving unsaved changes) and the global Snackbar notice.
 - `src/constants/` — sample dashboard fixture, the per-type slot catalogue (`widgetTypes.ts`, drives the editor), the drag type.
 - `src/components/` — `widgets/` (one renderer per widget type), `editor/` (field panel, drop slots, widget settings — edit mode), `dashboard/` (grid, rebind dialog), `dashboards/` (list cards, create/import dialogs), `datasets/`. `src/pages/` has one component per screen; `src/hooks/` holds `useDatasetRows`.
 
