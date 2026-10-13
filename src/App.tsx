@@ -4,7 +4,7 @@
 // 專案沒有 router（ADR 0001），顯示哪個畫面由 uiStore.view 決定：
 //   dashboards → 儀表板清單、datasets → 資料集庫、dashboard → 單一儀表板（檢視／編輯）。
 
-import { useState } from 'react';
+import type { ReactNode } from 'react';
 import Alert from '@mui/material/Alert';
 import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
@@ -20,35 +20,61 @@ import { DashboardPage } from './pages/DashboardPage.tsx';
 import { DatasetLibraryPage } from './pages/DatasetLibraryPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { signOut } from './services/auth.ts';
+import { loadDatasets } from './services/datasetService.ts';
+import { useAppStore } from './store/appStore.ts';
 import { useAuthStore } from './store/authStore.ts';
 import { useUiStore } from './store/uiStore.ts';
+
+function FullScreen({ children }: { children: ReactNode }) {
+  return (
+    <Box sx={{ minHeight: '100svh', display: 'grid', placeItems: 'center', p: 2 }}>{children}</Box>
+  );
+}
 
 function App() {
   const authStatus = useAuthStore((s) => s.status);
   const email = useAuthStore((s) => s.user?.email);
   const view = useUiStore((s) => s.view);
   const navigate = useUiStore((s) => s.navigate);
-  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const notice = useUiStore((s) => s.notice);
+  const notify = useUiStore((s) => s.notify);
+  const datasetsStatus = useAppStore((s) => s.datasetsStatus);
   // 單一儀表板頁沒有自己的分頁，沿用「儀表板」分頁的反白。
   const tab = view === 'datasets' ? 'datasets' : 'dashboards';
 
-  if (authStatus === 'loading') {
+  if (authStatus === 'signedOut') return <LoginPage />;
+  // 登入後要等資料集清單載入（services/auth.ts 觸發），否則儀表板會誤判成「資料集遺失」。
+  if (
+    authStatus === 'loading' ||
+    datasetsStatus.status === 'idle' ||
+    datasetsStatus.status === 'loading'
+  ) {
     return (
-      <Box sx={{ minHeight: '100svh', display: 'grid', placeItems: 'center' }}>
+      <FullScreen>
         <CircularProgress aria-label='載入中' />
-      </Box>
+      </FullScreen>
     );
   }
-  if (authStatus === 'signedOut') return <LoginPage />;
+  if (datasetsStatus.status === 'error') {
+    return (
+      <FullScreen>
+        <Alert severity='error' action={<Button onClick={() => void loadDatasets()}>重試</Button>}>
+          載入資料集失敗：{datasetsStatus.message}
+        </Alert>
+      </FullScreen>
+    );
+  }
 
-  // 資料目前仍存在這個瀏覽器（localStorage + IndexedDB），所以登出時不清空 store；
-  // 等資料改由 Supabase 載入後，登出時要一併清空 appStore 與 rowsStore。
+  // 登出後清空記憶體中的資料由 services/auth.ts 處理；儀表板暫時仍存在 localStorage，不會清掉。
   const handleSignOut = async () => {
     try {
       await signOut();
       navigate('dashboards');
     } catch (error) {
-      setSignOutError(`登出失敗：${error instanceof Error ? error.message : String(error)}`);
+      notify({
+        severity: 'error',
+        message: `登出失敗：${error instanceof Error ? error.message : String(error)}`,
+      });
     }
   };
 
@@ -81,14 +107,10 @@ function App() {
         {view === 'datasets' && <DatasetLibraryPage />}
         {view === 'dashboard' && <DashboardPage />}
       </Box>
-      <Snackbar
-        open={signOutError !== null}
-        autoHideDuration={6000}
-        onClose={() => setSignOutError(null)}
-      >
-        {signOutError ? (
-          <Alert severity='error' variant='filled' onClose={() => setSignOutError(null)}>
-            {signOutError}
+      <Snackbar open={notice !== null} autoHideDuration={6000} onClose={() => notify(null)}>
+        {notice ? (
+          <Alert severity={notice.severity} variant='filled' onClose={() => notify(null)}>
+            {notice.message}
           </Alert>
         ) : undefined}
       </Snackbar>

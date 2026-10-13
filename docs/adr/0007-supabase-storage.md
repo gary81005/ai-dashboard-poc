@@ -1,6 +1,6 @@
 # 0007. 改用 Supabase 儲存資料與設定
 
-- 狀態：已採納（取代 [0001](0001-frontend-only-storage.md)），分階段實作：第一階段只建立基礎建設（Supabase client、型別、migration），應用層仍使用 localStorage / IndexedDB，切換與文件同步在後續階段進行
+- 狀態：已採納（取代 [0001](0001-frontend-only-storage.md)），分階段實作：已完成基礎建設、登入、資料集（資料集、資料列、原始檔已改存 Supabase，IndexedDB 已移除）；儀表板仍存在 localStorage，於下一階段切換
 - 日期：2026-10-13
 
 ## 背景
@@ -64,6 +64,7 @@ Schema 的正本是 `supabase/migrations/`，前端型別由 `npm run db:types` 
 - 存取資料庫一定要經過 `services/`，UI 不直接 import Supabase client。0001 預留的接點（store 的儲存層和資料集讀寫模組）就是這次替換的範圍。
 - 沒有網路就無法使用。
 - 本機的舊資料（localStorage、IndexedDB）不搬，需要的話用匯出 / 匯入 JSON 或重新上傳。
+- 分階段期間的已知限制：資料集已經按帳號隔離，儀表板卻還存在 localStorage，由同一個瀏覽器的所有帳號共用。換帳號登入會看到前一位的儀表板，而且都顯示「資料集遺失」。儀表板改存 Supabase 後就會消失。
 
 ## 考慮過的其他方案
 

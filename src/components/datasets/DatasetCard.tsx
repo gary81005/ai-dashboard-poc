@@ -22,19 +22,28 @@ import Typography from '@mui/material/Typography';
 import { deleteDataset } from '../../services/datasetService.ts';
 import type { Dataset } from '../../types/index.ts';
 import { useAppStore } from '../../store/appStore.ts';
+import { useUiStore } from '../../store/uiStore.ts';
 import { TableFieldsAccordion } from './TableFieldsAccordion.tsx';
 
 export function DatasetCard({ dataset }: { dataset: Dataset }) {
   const [confirming, setConfirming] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const dashboards = useAppStore((s) => s.dashboards);
+  const notify = useUiStore((s) => s.notify);
   const usedBy = dashboards.filter((d) => d.datasetId === dataset.id);
   const visibleCount = dataset.tables.filter((t) => !t.hidden).length;
   const skippedCount = dataset.skippedSheets?.length ?? 0;
 
   const handleDelete = async () => {
     setConfirming(false);
-    await deleteDataset(dataset.id);
+    try {
+      await deleteDataset(dataset.id);
+    } catch (error) {
+      notify({
+        severity: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
   };
 
   return (
@@ -112,7 +121,7 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
               ? `以下儀表板正在使用這個資料集，刪除後它們會顯示「資料集遺失」：${usedBy
                   .map((d) => d.name)
                   .join('、')}`
-              : '資料集和它的資料會從這個瀏覽器中移除，無法復原。'}
+              : '資料集、它的資料列和原始 Excel 檔都會從雲端刪除，無法復原。'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>

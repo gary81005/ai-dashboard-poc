@@ -24,6 +24,7 @@ import { WidgetEditor } from '../components/editor/WidgetEditor.tsx';
 import { useDatasetRows } from '../hooks/useDatasetRows.ts';
 import { downloadJson } from '../services/download.ts';
 import { useAppStore } from '../store/appStore.ts';
+import { useRowsStore } from '../store/rowsStore.ts';
 import { useUiStore } from '../store/uiStore.ts';
 import type { Dashboard, Dataset, DatasetRows } from '../types/index.ts';
 import { buildExport } from '../utils/dashboardTransfer.ts';
@@ -101,9 +102,10 @@ export function DashboardPage() {
 
 type ContentProps = { dashboard: Dashboard; dataset: Dataset; editing: boolean };
 
-// 依資料列的載入狀態顯示對應畫面；資料列來自 IndexedDB，第一次開啟需要等待。
+// 依資料列的載入狀態顯示對應畫面；資料列從 Supabase 分頁載入，第一次開啟需要等待。
 function DashboardContent({ dashboard, dataset, editing }: ContentProps) {
-  const entry = useDatasetRows(dataset.id);
+  const entry = useDatasetRows(dataset);
+  const loadRows = useRowsStore((s) => s.load);
 
   switch (entry.status) {
     case 'loading':
@@ -112,14 +114,15 @@ function DashboardContent({ dashboard, dataset, editing }: ContentProps) {
           <CircularProgress />
         </Stack>
       );
-    case 'missing':
+    case 'error':
       return (
-        <Alert severity='error'>
-          在這個瀏覽器的 IndexedDB 找不到「{dataset.name}」的資料，請重新上傳 Excel。
+        <Alert
+          severity='error'
+          action={<Button onClick={() => void loadRows(dataset)}>重試</Button>}
+        >
+          讀取資料失敗：{entry.message}
         </Alert>
       );
-    case 'error':
-      return <Alert severity='error'>讀取資料失敗：{entry.message}</Alert>;
     case 'ready':
       return editing ? (
         <EditWorkspace dashboard={dashboard} dataset={dataset} rows={entry.rows} />

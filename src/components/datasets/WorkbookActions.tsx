@@ -1,4 +1,4 @@
-// 「上傳 Excel」與「載入範例資料」兩個按鈕，含處理中狀態與結果提示（Snackbar）。
+// 「上傳 Excel」與「載入範例資料」兩個按鈕，含處理中狀態、寫入資料列的進度與結果提示（Snackbar）。
 //
 // 用在儀表板清單的空狀態、資料集頁，以及匯入儀表板的對話框。
 
@@ -29,8 +29,14 @@ type Props = {
 export function WorkbookActions({ showSample = true, stayOnPage = false }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<Busy>(null);
+  // 寫入資料列的百分比；解析與上傳原始檔期間還沒有進度，是 null。
+  const [percent, setPercent] = useState<number | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const navigate = useUiStore((s) => s.navigate);
+
+  const handleProgress = (done: number, total: number) =>
+    setPercent(total === 0 ? 100 : Math.round((done / total) * 100));
+  const label = () => (percent === null ? '處理中…' : `寫入資料 ${percent}%`);
 
   const handleFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -39,7 +45,12 @@ export function WorkbookActions({ showSample = true, stayOnPage = false }: Props
     if (!file) return;
     setBusy('upload');
     try {
-      const dataset = await importWorkbook(await file.arrayBuffer(), file.name);
+      const dataset = await importWorkbook(
+        await file.arrayBuffer(),
+        file.name,
+        undefined,
+        handleProgress,
+      );
       const skipped = dataset.skippedSheets?.length ?? 0;
       setNotice(
         skipped > 0
@@ -54,18 +65,20 @@ export function WorkbookActions({ showSample = true, stayOnPage = false }: Props
       setNotice({ severity: 'error', message: `匯入失敗：${errorMessage(error)}` });
     } finally {
       setBusy(null);
+      setPercent(null);
     }
   };
 
   const handleSample = async () => {
     setBusy('sample');
     try {
-      await loadSample();
+      await loadSample(handleProgress);
       navigate('dashboard');
     } catch (error) {
       setNotice({ severity: 'error', message: `載入範例失敗：${errorMessage(error)}` });
     } finally {
       setBusy(null);
+      setPercent(null);
     }
   };
 
@@ -84,7 +97,7 @@ export function WorkbookActions({ showSample = true, stayOnPage = false }: Props
         startIcon={busy === 'upload' ? <CircularProgress size={16} color='inherit' /> : undefined}
         onClick={() => inputRef.current?.click()}
       >
-        上傳 Excel
+        {busy === 'upload' ? label() : '上傳 Excel'}
       </Button>
       {showSample && (
         <Button
@@ -93,7 +106,7 @@ export function WorkbookActions({ showSample = true, stayOnPage = false }: Props
           startIcon={busy === 'sample' ? <CircularProgress size={16} color='inherit' /> : undefined}
           onClick={handleSample}
         >
-          載入範例資料
+          {busy === 'sample' ? label() : '載入範例資料'}
         </Button>
       )}
       <Snackbar

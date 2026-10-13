@@ -1,6 +1,7 @@
-// 持久化設定的型別：存進 localStorage 的 JSON 就長這樣（詳見 docs/adr/0005）。
+// 持久化設定的型別：Supabase 的 datasets.body／dashboards.body（儀表板暫時仍在 localStorage）
+// 與匯出的 JSON 都是這個形狀（詳見 docs/adr/0005、0007）。
 // 這裡是格式的「正本」。修改任何欄位的意義，都必須調高 SCHEMA_VERSION，
-// 並在 store/appStore.ts 的 migrate 補上舊格式的轉換。
+// 並在 utils/schema.ts（資料庫記錄）與 store/appStore.ts（localStorage）的 migrate 補上舊格式的轉換。
 
 export const SCHEMA_VERSION = 1;
 
@@ -36,7 +37,7 @@ export type DataTable = {
 
 export type SkippedSheet = { sheetName: string; reason: string };
 
-// 一次上傳的結果。這裡只有中繼資料，資料列存在 IndexedDB（依 id 對應）。
+// 一次上傳的結果。這裡只有中繼資料（存在 Supabase 的 datasets.body），資料列存在 dataset_rows 表。
 export type Dataset = {
   id: string;
   name: string;
@@ -134,7 +135,7 @@ export type PersistedState = {
   activeDashboardId: string | null;
 };
 
-// 資料列存在 IndexedDB（services/datasetRows.ts），不放進上面的持久化設定。
+// 資料列存在 Supabase 的 dataset_rows 表（services/datasetRows.ts），不放進上面的設定。
 // 一列是「中文標頭 → 值」的物件；日期已轉成 YYYY-MM-DD 字串。
 export type CellValue = string | number | boolean | null;
 export type Row = Record<string, CellValue>;

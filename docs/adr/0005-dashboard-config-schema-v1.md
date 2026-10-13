@@ -5,7 +5,7 @@
 
 ## 背景
 
-儀表板的設定（用了哪些圖、版面位置、綁定哪些欄位、資料集的欄位中繼資料）以 JSON 存在 localStorage（見 [0001](0001-frontend-only-storage.md)），匯出、匯入也用同樣的格式。這份格式一旦有使用者存了資料，修改就必須寫 migration，所以要先定清楚。
+儀表板的設定（用了哪些圖、版面位置、綁定哪些欄位、資料集的欄位中繼資料）以 JSON 存在 localStorage（見 [0001](0001-frontend-only-storage.md)；[0007](0007-supabase-storage.md) 之後改存 Supabase，格式不變），匯出、匯入也用同樣的格式。這份格式一旦有使用者存了資料，修改就必須寫 migration，所以要先定清楚。
 
 ## 決策
 
@@ -14,7 +14,8 @@
 - localStorage key：`ai-dashboard-poc`，整份設定只存這一個 key。
 - 由 Zustand `persist` 寫入，外層包成 `{ "version": 1, "state": { … } }`。
 - 格式有破壞性修改時，把 `version` 加 1，並在 `migrate` 裡把舊格式轉成新格式。**不可以直接修改舊格式的欄位意義。**
-- 資料列**不**放在這裡，而是存在 IndexedDB 的 `dataset-rows:<datasetId>`。
+- 資料列**不**放在這裡。原本存在 IndexedDB 的 `dataset-rows:<datasetId>`，[0007](0007-supabase-storage.md) 之後改存 Supabase 的 `dataset_rows` 表。
+- [0007](0007-supabase-storage.md) 之後資料集也不再存在這個 key：`Dataset` 以同樣的 v1 形狀存在 Supabase 的 `datasets.body`，版本記在 `schema_version` 欄位，讀取時由 `utils/schema.ts` 檢查。這個 key 目前只剩儀表板，下一階段也會搬到 Supabase 的 `dashboards.body`。
 
 ### 型別定義
 

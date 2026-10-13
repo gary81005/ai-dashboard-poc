@@ -11,6 +11,7 @@ import DialogTitle from '@mui/material/DialogTitle';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import { saveDataset } from '../../services/datasetService.ts';
 import { useAppStore } from '../../store/appStore.ts';
 import type { Dashboard } from '../../types/index.ts';
 import { carryOverrides, findIssues, rebindDashboard } from '../../utils/rebind.ts';
@@ -21,7 +22,6 @@ type Props = { dashboard: Dashboard; open: boolean; onClose: () => void };
 export function RebindDialog({ dashboard, open, onClose }: Props) {
   const datasets = useAppStore((s) => s.datasets);
   const replaceDashboard = useAppStore((s) => s.replaceDashboard);
-  const replaceDataset = useAppStore((s) => s.replaceDataset);
   const candidates = datasets.filter((d) => d.id !== dashboard.datasetId);
   const [targetId, setTargetId] = useState('');
   const target = candidates.find((d) => d.id === targetId);
@@ -30,7 +30,7 @@ export function RebindDialog({ dashboard, open, onClose }: Props) {
   const handleConfirm = () => {
     if (!target) return;
     const next = current ? carryOverrides(current, target) : target;
-    if (next !== target) replaceDataset(next);
+    if (next !== target) saveDataset(next);
     replaceDashboard(rebindDashboard(dashboard, next));
     setTargetId('');
     onClose();

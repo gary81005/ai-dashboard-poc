@@ -18,7 +18,7 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import type { DataTable, DataType, Role } from '../../types/index.ts';
-import { useAppStore } from '../../store/appStore.ts';
+import { setTableHidden, updateField } from '../../services/datasetService.ts';
 
 const DATA_TYPE_LABELS: Record<DataType, string> = {
   text: '文字',
@@ -31,9 +31,6 @@ const DATA_TYPE_LABELS: Record<DataType, string> = {
 type Props = { datasetId: string; table: DataTable };
 
 export function TableFieldsAccordion({ datasetId, table }: Props) {
-  const setTableHidden = useAppStore((s) => s.setTableHidden);
-  const updateField = useAppStore((s) => s.updateField);
-
   return (
     <Accordion disableGutters variant='outlined' sx={{ opacity: table.hidden ? 0.6 : 1 }}>
       <AccordionSummary>

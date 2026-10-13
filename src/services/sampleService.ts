@@ -2,6 +2,7 @@
 // 再依 constants/sampleDashboard.ts 建立範例儀表板，並設為目前開啟的儀表板。
 
 import { importWorkbook } from './datasetService.ts';
+import type { Progress } from './datasetRows.ts';
 import type { Dashboard } from '../types/index.ts';
 import { useAppStore } from '../store/appStore.ts';
 import {
@@ -10,7 +11,7 @@ import {
   createSampleDashboard,
 } from '../constants/sampleDashboard.ts';
 
-export async function loadSample(): Promise<Dashboard> {
+export async function loadSample(onProgress?: Progress): Promise<Dashboard> {
   // 檔名含中文所以要編碼；BASE_URL 讓部署在子路徑時也找得到檔案。
   const url = `${import.meta.env.BASE_URL}samples/${encodeURIComponent(SAMPLE_FILE)}`;
   const response = await fetch(url);
@@ -19,6 +20,7 @@ export async function loadSample(): Promise<Dashboard> {
     await response.arrayBuffer(),
     SAMPLE_FILE,
     SAMPLE_DATASET_NAME,
+    onProgress,
   );
   const dashboard = createSampleDashboard(dataset.id);
   const { addDashboard, setActiveDashboard } = useAppStore.getState();

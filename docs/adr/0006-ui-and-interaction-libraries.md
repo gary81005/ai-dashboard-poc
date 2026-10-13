@@ -19,7 +19,7 @@
 | 格線版面            | `react-grid-layout` 2.2.4                             | 版面格式 `{i,x,y,w,h}` 直接存進設定 JSON              |
 | 欄位拖放            | `react-dnd` 16.0.1 + `react-dnd-html5-backend` 16.0.1 | 只用 hooks API（`useDrag` / `useDrop`）               |
 | 狀態與 localStorage | `zustand` 5.0（含 `persist`）                         | 見 [0001](0001-frontend-only-storage.md)              |
-| IndexedDB           | `idb-keyval` 6.3                                      |                                                       |
+| IndexedDB           | ~~`idb-keyval` 6.3~~                                  | 已由 [0007](0007-supabase-storage.md) 移除            |
 | 日期                | `dayjs` 1.11（含 `utc` plugin）                       | 見 [0002](0002-excel-parsing-exceljs.md)              |
 | Excel 解析          | `exceljs` 4.4.0                                       | 取代 `xlsx`，見 [0002](0002-excel-parsing-exceljs.md) |
 

@@ -1,7 +1,9 @@
 // 登入流程：email magic link（ADR 0007）。UI 只呼叫這裡，不直接碰 Supabase client。
 //
-// session 由 supabase-js 自己存在 localStorage 並自動續期；這裡只把登入狀態同步進 authStore。
+// session 由 supabase-js 自己存在 localStorage 並自動續期；這裡只把登入狀態同步進 authStore，
+// 並在換人時清掉上一位使用者的資料、載入新使用者的資料集。
 
+import { loadDatasets, resetDatasets } from './datasetService.ts';
 import { supabase } from './supabase.ts';
 import { useAuthStore } from '../store/authStore.ts';
 
@@ -10,7 +12,13 @@ import { useAuthStore } from '../store/authStore.ts';
 export function startAuthListener(): void {
   supabase.auth.onAuthStateChange((_event, session) => {
     const user = session?.user;
+    const previousId = useAuthStore.getState().user?.id;
     useAuthStore.getState().setUser(user ? { id: user.id, email: user.email ?? '' } : null);
+    // 只在換人時重新載入；token 續期也會觸發這個 callback，但使用者沒變。
+    if (user?.id === previousId) return;
+    resetDatasets();
+    // 延到 callback 結束後才查資料庫，避免上面說的卡死。
+    if (user) setTimeout(() => void loadDatasets(), 0);
   });
 
   // 點了過期或已用過的連結時，Supabase 會帶著 #error=… 導回來；initialize 會回報這個錯誤。

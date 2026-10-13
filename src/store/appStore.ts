@@ -1,8 +1,10 @@
-// 整份持久化設定的 store：資料集中繼資料 + 儀表板，寫進 localStorage 的單一 key（ADR 0001、0005）。
+// 設定的 store：資料集中繼資料 + 儀表板（ADR 0005、0007）。
 //
-// 由 Zustand persist 自動讀寫；partialize 只挑出 PersistedState，action 函式不會被存進去。
+// 資料集存在 Supabase，登入後由 services/datasetService.ts 載入並寫回，這裡只是記憶體中的副本。
+// 儀表板暫時仍由 Zustand persist 寫進 localStorage 的單一 key；partialize 只挑出儀表板，
+// action 函式和資料集都不會被存進去。
 // 所有更新都是不可變更新（回傳新物件），React 才能正確偵測變化。
-// 資料列不在這裡，而是在 IndexedDB（services/datasetRows.ts）。
+// 資料列不在這裡，而是在 rowsStore（從 Supabase 的 dataset_rows 載入）。
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
@@ -22,7 +24,19 @@ export const STORAGE_KEY = 'ai-dashboard-poc';
 
 type FieldPatch = { role?: Role; ratio?: boolean };
 
+// 資料集清單的載入狀態。idle = 尚未登入或剛登出。
+export type DatasetsStatus =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'ready' }
+  | { status: 'error'; message: string };
+
+type LocalState = Omit<PersistedState, 'datasets'>;
+
 type AppState = PersistedState & {
+  datasetsStatus: DatasetsStatus;
+  setDatasets: (datasets: Dataset[]) => void;
+  setDatasetsStatus: (status: DatasetsStatus) => void;
   addDataset: (dataset: Dataset) => void;
   removeDataset: (datasetId: string) => void;
   renameDataset: (datasetId: string, name: string) => void;
@@ -90,7 +104,10 @@ export const useAppStore = create<AppState>()(
       datasets: [],
       dashboards: [],
       activeDashboardId: null,
+      datasetsStatus: { status: 'idle' },
 
+      setDatasets: (datasets) => set({ datasets }),
+      setDatasetsStatus: (datasetsStatus) => set({ datasetsStatus }),
       addDataset: (dataset) => set((s) => ({ datasets: [...s.datasets, dataset] })),
       removeDataset: (datasetId) =>
         set((s) => ({ datasets: s.datasets.filter((d) => d.id !== datasetId) })),
@@ -151,18 +168,27 @@ export const useAppStore = create<AppState>()(
     {
       name: STORAGE_KEY,
       version: SCHEMA_VERSION,
-      partialize: (s): PersistedState => ({
-        datasets: s.datasets,
+      partialize: (s): LocalState => ({
         dashboards: s.dashboards,
         activeDashboardId: s.activeDashboardId,
       }),
+      // 改用 Supabase 之前存下的設定裡還有 datasets，讀取時忽略，以資料庫為準。
+      // localStorage 是空的時候 persisted 是 undefined。
+      merge: (persisted, current) => {
+        const local = persisted as Partial<LocalState> | undefined;
+        return {
+          ...current,
+          dashboards: local?.dashboards ?? current.dashboards,
+          activeDashboardId: local?.activeDashboardId ?? current.activeDashboardId,
+        };
+      },
       migrate: (persisted, version) => {
         // 目前只有 v1，沒有舊格式要轉換；之後改版時在這裡依 version 逐步轉換。
         // 遇到比目前程式還新的格式就丟錯，不要用舊邏輯硬讀，以免誤解欄位意義。
         if (version > SCHEMA_VERSION) {
           throw new Error(`設定格式 v${version} 比目前程式支援的 v${SCHEMA_VERSION} 還新`);
         }
-        return persisted as PersistedState;
+        return persisted as LocalState;
       },
     },
   ),

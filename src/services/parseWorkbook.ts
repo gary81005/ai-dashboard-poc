@@ -86,7 +86,7 @@ function unwrap(value: unknown): Primitive {
   return null;
 }
 
-// 轉成要存進 IndexedDB 的值：日期以 UTC 格式化成字串（避免時區偏移一天，ADR 0002），字串去頭尾空白。
+// 轉成要存進資料庫的值：日期以 UTC 格式化成字串（避免時區偏移一天，ADR 0002），字串去頭尾空白。
 function toCellValue(value: Primitive): CellValue {
   if (value instanceof Date) {
     const date = dayjs.utc(value);
