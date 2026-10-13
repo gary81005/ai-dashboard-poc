@@ -17,7 +17,7 @@ import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { DashboardExport } from '../../utils/dashboardTransfer.ts';
 import { instantiateImport } from '../../utils/dashboardTransfer.ts';
-import { findIssues, rebindDashboard } from '../../utils/rebind.ts';
+import { findIssues, findMissingFilters, rebindDashboard } from '../../utils/rebind.ts';
 import { WorkbookActions } from '../datasets/WorkbookActions.tsx';
 import { IssueList } from './IssueList.tsx';
 
@@ -33,8 +33,7 @@ export function ImportDashboardDialog({ data, onClose }: Props) {
   const selectedId = datasetId || datasets.at(-1)?.id || '';
   const dataset = datasets.find((d) => d.id === selectedId);
   // 預覽只做比對、不產生新 id；id 在按下「匯入」時才產生，避免在 render 中產生亂數。
-  const issues =
-    data && dataset ? findIssues(rebindDashboard(data.dashboard, dataset), dataset) : [];
+  const preview = data && dataset ? rebindDashboard(data.dashboard, dataset) : undefined;
 
   const handleImport = async () => {
     if (!data || !dataset) return;
@@ -82,7 +81,12 @@ export function ImportDashboardDialog({ data, onClose }: Props) {
             </TextField>
           )}
           <WorkbookActions showSample={false} stayOnPage />
-          {data && dataset && <IssueList issues={issues} />}
+          {preview && dataset && (
+            <IssueList
+              issues={findIssues(preview, dataset)}
+              missingFilters={findMissingFilters(preview, dataset)}
+            />
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>

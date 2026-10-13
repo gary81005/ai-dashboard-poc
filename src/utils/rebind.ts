@@ -4,6 +4,7 @@
 
 import { WIDGET_SLOTS } from '../constants/widgetTypes.ts';
 import type { Dashboard, Dataset, Field, FieldRef, Widget } from '../types/index.ts';
+import { tablesWithField } from './dashboardFilters.ts';
 import { findTable, resolveField, toFieldRef } from './fields.ts';
 import { readSlot, writeSlot } from './widgetEditing.ts';
 
@@ -53,7 +54,26 @@ export function findIssues(dashboard: Dashboard, dataset: Dataset): WidgetIssue[
   });
 }
 
-// 把儀表板綁到新的資料集：資料表改用新資料集的 key；只靠欄位代碼對上的參照，改寫成新的標頭。
+// 儀表板篩選在指定資料集裡，所有看得到的資料表都找不到的欄位（篩選時會被略過）。
+export function findMissingFilters(dashboard: Dashboard, dataset: Dataset): FieldRef[] {
+  return (dashboard.filters ?? [])
+    .filter((filter) => tablesWithField(dataset, filter).length === 0)
+    .map((filter) => filter.field);
+}
+
+// 儀表板篩選不屬於任何一張資料表，所以在看得到的資料表裡找：有任何一張表的標頭對得上就不動；
+// 只靠欄位代碼對上時改寫成新的標頭，因為篩選的選值以標頭當 key。完全對不上的保持原樣。
+function rebindFilterRef(dataset: Dataset, ref: FieldRef): FieldRef {
+  const tables = dataset.tables.filter((t) => !t.hidden);
+  if (tables.some((t) => t.fields.some((f) => f.header === ref.header))) return ref;
+  for (const table of tables) {
+    const field = resolveField(table, ref);
+    if (field) return toFieldRef(field);
+  }
+  return ref;
+}
+
+// 把儀表板綁到新的資料集：資料表改用新資料集的 key；只靠欄位代碼對上的參照（含儀表板篩選），改寫成新的標頭。
 // 完全對不上的參照保持原樣，畫面上會顯示「欄位遺失」讓使用者重新指定。
 export function rebindDashboard(dashboard: Dashboard, dataset: Dataset): Dashboard {
   const widgets = dashboard.widgets.map((widget) => {
@@ -64,7 +84,11 @@ export function rebindDashboard(dashboard: Dashboard, dataset: Dataset): Dashboa
       return field && field.header !== ref.header ? toFieldRef(field) : ref;
     });
   });
-  return { ...dashboard, datasetId: dataset.id, widgets };
+  const filters = dashboard.filters?.map((f) => ({
+    ...f,
+    field: rebindFilterRef(dataset, f.field),
+  }));
+  return { ...dashboard, datasetId: dataset.id, widgets, ...(filters ? { filters } : {}) };
 }
 
 // ADR 0003 決策 5：手動調整過的角色／比率標記／分子分母，沿用到新資料集裡對應的欄位；

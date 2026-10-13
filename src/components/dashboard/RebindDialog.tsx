@@ -14,7 +14,12 @@ import TextField from '@mui/material/TextField';
 import { saveDataset } from '../../services/datasetService.ts';
 import { useAppStore } from '../../store/appStore.ts';
 import type { Dashboard } from '../../types/index.ts';
-import { carryOverrides, findIssues, rebindDashboard } from '../../utils/rebind.ts';
+import {
+  carryOverrides,
+  findIssues,
+  findMissingFilters,
+  rebindDashboard,
+} from '../../utils/rebind.ts';
 import { IssueList } from '../dashboards/IssueList.tsx';
 
 type Props = { dashboard: Dashboard; open: boolean; onClose: () => void };
@@ -62,7 +67,12 @@ export function RebindDialog({ dashboard, open, onClose }: Props) {
               ))}
             </TextField>
           )}
-          {target && <IssueList issues={findIssues(dashboard, target)} />}
+          {target && (
+            <IssueList
+              issues={findIssues(dashboard, target)}
+              missingFilters={findMissingFilters(dashboard, target)}
+            />
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>
