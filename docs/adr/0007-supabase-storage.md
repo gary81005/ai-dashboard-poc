@@ -13,7 +13,7 @@
 
 ### 登入與資料歸屬
 
-1. **用 Supabase Auth 的 email magic link 登入。** 未登入時整個 app 只顯示登入畫面（由 `uiStore` 切換，仍然不引入 router）。
+1. **用 Supabase Auth 的 email magic link 登入。** 未登入時整個 app 只顯示登入畫面。登入狀態由 `onAuthStateChange` 同步進 `authStore`，`App` 依狀態切換畫面，仍然不引入 router。
 2. **每一列資料都屬於一位使用者。** 三張表都有 `user_id uuid default auth.uid()`，RLS policy 一律是 `user_id = auth.uid()`，而且只開放給 `authenticated`，`anon` 什麼都不能存取。
 3. **主鍵是 `(user_id, id)`。** 前端產生的 id 只有 8 碼（`utils/ids.ts`），匯入 JSON 時也會沿用原本的 id，只用 `id` 當主鍵的話，兩個帳號可能撞號。
 
@@ -45,7 +45,7 @@ Schema 的正本是 `supabase/migrations/`，前端型別由 `npm run db:types` 
 
 ### 前端狀態
 
-- **Supabase 是唯一的資料來源。** 拿掉 Zustand persist（localStorage）和 `idb-keyval`（IndexedDB），不做離線快取或同步。`uiStore` 的導覽狀態不受影響。
+- **Supabase 是唯一的資料來源。** 拿掉 Zustand persist（localStorage）和 `idb-keyval`（IndexedDB），不做離線快取或同步。`uiStore` 的導覽狀態不受影響。唯一留在瀏覽器的是 supabase-js 自己存在 localStorage 的登入 session。
 - 登入後只載入 `datasets`、`dashboards` 的清單；開啟儀表板時才分頁撈資料列，放進記憶體裡的 `rowsStore`。登出時清空 `appStore` 和 `rowsStore`。
 - **儀表板內容要手動按「儲存」。** 版面、widget、欄位綁定的變更先只存在記憶體，標示為「未儲存」；在 app 內切換畫面時提醒，關閉或重新整理分頁時用 `beforeunload` 提醒。存檔失敗時跳 Snackbar，維持「未儲存」狀態，再按一次就重試。
 - 清單層級的操作立即寫入：新增、複製、刪除、改名儀表板，以及上傳、刪除資料集。

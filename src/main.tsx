@@ -7,18 +7,42 @@
 // 設計決策記在 docs/adr/，名詞定義在 CONTEXT.md。
 
 import { StrictMode } from 'react';
+import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
 import './index.css';
-import App from './App.tsx';
+import { StartupErrorPage } from './pages/StartupErrorPage.tsx';
 import { theme } from './theme.ts';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
-  </StrictMode>,
-);
+const root = createRoot(document.getElementById('root')!);
+
+function render(node: ReactNode) {
+  root.render(
+    <StrictMode>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        {node}
+      </ThemeProvider>
+    </StrictMode>,
+  );
+}
+
+// App 與 auth 用動態 import：services/supabase.ts 缺少環境變數時會在載入階段就 throw，
+// 寫成靜態 import 的話 try/catch 接不到，畫面只會一片空白。
+async function start() {
+  try {
+    const [{ default: App }, { startAuthListener }] = await Promise.all([
+      import('./App.tsx'),
+      import('./services/auth.ts'),
+    ]);
+    // 在第一次 render 前開始監聽登入狀態，App 才知道要顯示登入頁還是主畫面。
+    startAuthListener();
+    render(<App />);
+  } catch (error) {
+    console.error('無法啟動應用程式', error);
+    render(<StartupErrorPage error={error} />);
+  }
+}
+
+void start();

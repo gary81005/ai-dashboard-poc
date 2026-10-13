@@ -28,3 +28,4 @@ dist-ssr
 
 # Left behind when `npm run db:types` fails
 src/types/database.ts.tmp
+docs/poc/*
