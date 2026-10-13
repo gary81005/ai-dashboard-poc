@@ -9,6 +9,8 @@ npm run dev      # Vite dev server with HMR
 npm run build    # tsc -b (project references) then vite build
 npm run lint     # eslint .
 npm run preview  # serve the production build from dist/
+npm run db:push  # apply supabase/migrations/ to the linked Supabase project
+npm run db:types # regenerate src/types/database.ts from the linked project's schema
 ```
 
 There is no test runner configured. `npm run build` and `npm run lint` are the only verification available — run both before claiming a change is done, since `tsc -b` catches things ESLint does not (the lint config is _not_ type-aware: it uses `tseslint.configs.recommended`, not `recommendedTypeChecked`).
@@ -18,7 +20,7 @@ There is no test runner configured. `npm run build` and `npm run lint` are the o
 A personal dashboard builder: upload a standardized Excel workbook, drag columns onto chart slots, arrange widgets on a grid. Frontend only. Read these before changing behavior:
 
 - `CONTEXT.md` — domain glossary (Dataset, DataTable, Field, FieldRef, Widget, encoding slots, ratio fields…). Use these names in code.
-- `docs/adr/` — decisions 0001–0006: frontend-only storage (localStorage config + IndexedDB rows), ExcelJS parsing, field identity/rebinding, role & aggregation rules, the persisted JSON schema v1, and the library stack. Read 0005 before changing anything that is persisted.
+- `docs/adr/` — decisions 0001–0007: frontend-only storage (localStorage config + IndexedDB rows), ExcelJS parsing, field identity/rebinding, role & aggregation rules, the persisted JSON schema v1, the library stack, and the move to Supabase storage (0007, superseding 0001). 0007 is being implemented in stages: so far only the infrastructure exists (`services/supabase.ts`, `types/database.ts`, `supabase/migrations/`), and the app still runs on localStorage + IndexedDB. Read 0005 before changing anything that is persisted.
 - `public/samples/` — the sample standardized workbook loaded by the "載入範例資料" button.
 
 Two dependencies are unmaintained — `exceljs` and `react-dnd` — so don't upgrade-hunt them. `exceljs` is ~930 KB minified: load it only via dynamic `import('exceljs')` (see `services/parseWorkbook.ts`), never a static import.
