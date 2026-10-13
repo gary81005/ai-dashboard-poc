@@ -1,23 +1,29 @@
-// 格線上的一格：標題列（標題、篩選按鈕、編輯模式的刪除）、生效中的篩選摘要、圖表本體。
+// 格線上的一格：標題列（標題、篩選按鈕、編輯模式的刪除）、說明、生效中的篩選摘要、圖表本體。
 //
 // 也負責處理「還沒設定欄位」和「資料表不在資料集中」兩種狀況。
+// 查詢用的篩選 = widget 自己的篩選 + 儀表板篩選裡這張資料表有對應欄位的部分（ADR 0008）。
 // 編輯模式下標題是 react-grid-layout 的拖曳把手（.widget-drag-handle），點擊卡片會選取這個元件。
 
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import type { Dataset, DatasetRows, Widget } from '../../types/index.ts';
+import type { DashboardFilter, Dataset, DatasetRows, Widget } from '../../types/index.ts';
+import { filtersForTable } from '../../utils/dashboardFilters.ts';
+import type { SelectedValues } from '../../utils/dashboardFilters.ts';
 import { findTable } from '../../utils/fields.ts';
 import { activeFilters, hasAnyField } from '../../utils/widgetEditing.ts';
 import { WidgetBody } from './WidgetBody.tsx';
 import { WidgetFilterControl } from './WidgetFilterControl.tsx';
 import { WidgetMessage } from './WidgetParts.tsx';
+import { TextWidget } from './TextWidget.tsx';
 
 type Props = {
   widget: Widget;
   dataset: Dataset;
   rows: DatasetRows;
+  dashboardFilters?: DashboardFilter[];
+  filterValues?: SelectedValues;
   editing?: boolean;
   selected?: boolean;
   onSelect?: () => void;
@@ -29,6 +35,8 @@ export function WidgetCard({
   widget,
   dataset,
   rows,
+  dashboardFilters = [],
+  filterValues = {},
   editing,
   selected,
   onSelect,
@@ -41,16 +49,26 @@ export function WidgetCard({
   const filterSummary = activeFilters(widget)
     .map((f) => `${f.field.header}：${f.values.join('、')}`)
     .join('・');
+  const { applied, skipped } = table
+    ? filtersForTable(table, dashboardFilters, filterValues)
+    : { applied: [], skipped: [] };
 
   let body;
-  if (!hasAnyField(widget)) {
+  if (widget.type === 'text') {
+    body = <TextWidget widget={widget} editing={editing} />;
+  } else if (!hasAnyField(widget)) {
     body = (
       <WidgetMessage>
         {editing ? '把右側欄位清單的欄位拖到元件設定的槽位' : '尚未設定欄位'}
       </WidgetMessage>
     );
   } else if (table && tableRows) {
-    body = <WidgetBody widget={widget} ctx={{ table, rows: tableRows, filters: widget.filters }} />;
+    body = (
+      <WidgetBody
+        widget={widget}
+        ctx={{ table, rows: tableRows, filters: [...widget.filters, ...applied] }}
+      />
+    );
   } else {
     body = (
       <WidgetMessage tone='error'>
@@ -102,9 +120,23 @@ export function WidgetCard({
           </Button>
         )}
       </Stack>
+      {widget.description && (
+        <Typography
+          variant='caption'
+          color='text.secondary'
+          sx={{ mt: -1, whiteSpace: 'pre-line', lineHeight: 1.5 }}
+        >
+          {widget.description}
+        </Typography>
+      )}
       {filterSummary && (
         <Typography variant='caption' color='primary' noWrap title={filterSummary} sx={{ mt: -1 }}>
           篩選：{filterSummary}
+        </Typography>
+      )}
+      {skipped.length > 0 && widget.type !== 'text' && (
+        <Typography variant='caption' color='warning' noWrap sx={{ mt: -1 }}>
+          未套用儀表板篩選：{skipped.join('、')}（這張資料表沒有這個欄位）
         </Typography>
       )}
       {body}

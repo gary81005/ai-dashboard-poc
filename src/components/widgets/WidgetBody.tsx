@@ -30,5 +30,8 @@ export function WidgetBody({ widget, ctx }: { widget: Widget; ctx: QueryContext 
       return <KpiWidget widget={widget} ctx={ctx} />;
     case 'table':
       return <TableWidget widget={widget} ctx={ctx} />;
+    // 文字元件不查詢資料，由 WidgetCard 直接渲染。
+    case 'text':
+      return null;
   }
 }

@@ -1,11 +1,16 @@
 // 一張資料表的欄位清單（可展開）：顯示代碼、型別、單位，並讓使用者手動調整
-// 角色（維度／量值）與比率標記（ADR 0004），以及這張表要不要出現在編輯模式的欄位清單。
+// 角色（維度／量值）、比率標記（ADR 0004）與加權比率的分子分母（ADR 0008），
+// 以及這張表要不要出現在編輯模式的欄位清單。
 
+import { useState } from 'react';
 import Accordion from '@mui/material/Accordion';
 import AccordionDetails from '@mui/material/AccordionDetails';
 import AccordionSummary from '@mui/material/AccordionSummary';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import MenuItem from '@mui/material/MenuItem';
+import Popover from '@mui/material/Popover';
 import Stack from '@mui/material/Stack';
 import Switch from '@mui/material/Switch';
 import Table from '@mui/material/Table';
@@ -14,10 +19,11 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import type { DataTable, DataType, Role } from '../../types/index.ts';
+import type { DataTable, DataType, Field, RatioOf, Role } from '../../types/index.ts';
 import { setTableHidden, updateField } from '../../services/datasetService.ts';
 
 const DATA_TYPE_LABELS: Record<DataType, string> = {
@@ -96,14 +102,25 @@ export function TableFieldsAccordion({ datasetId, table }: Props) {
                     </ToggleButtonGroup>
                   </TableCell>
                   <TableCell>
-                    <Switch
-                      size='small'
-                      checked={field.ratio === true}
-                      disabled={field.role !== 'measure'}
-                      onChange={(_, ratio) =>
-                        updateField(datasetId, table.key, field.header, { ratio })
-                      }
-                    />
+                    <Stack direction='row' spacing={1} sx={{ alignItems: 'center' }}>
+                      <Switch
+                        size='small'
+                        checked={field.ratio === true}
+                        disabled={field.role !== 'measure'}
+                        onChange={(_, ratio) =>
+                          updateField(datasetId, table.key, field.header, { ratio })
+                        }
+                      />
+                      {field.ratio && (
+                        <RatioOfControl
+                          field={field}
+                          table={table}
+                          onChange={(ratioOf) =>
+                            updateField(datasetId, table.key, field.header, { ratioOf })
+                          }
+                        />
+                      )}
+                    </Stack>
                   </TableCell>
                 </TableRow>
               ))}
@@ -112,5 +129,80 @@ export function TableFieldsAccordion({ datasetId, table }: Props) {
         </TableContainer>
       </AccordionDetails>
     </Accordion>
+  );
+}
+
+type RatioOfControlProps = {
+  field: Field;
+  table: DataTable;
+  onChange: (ratioOf: RatioOf | null) => void;
+};
+
+// 比率欄位的分子分母：設定後分組彙總改算「分子加總 ÷ 分母加總」。
+// Excel 公式認得出來時會自動帶入，這裡給沒有公式的活頁簿手動指定。
+function RatioOfControl({ field, table, onChange }: RatioOfControlProps) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const candidates = table.fields.filter((f) => f.role === 'measure' && f.header !== field.header);
+  const [numerator, setNumerator] = useState(field.ratioOf?.numerator ?? '');
+  const [denominator, setDenominator] = useState(field.ratioOf?.denominator ?? '');
+  const ready = numerator !== '' && denominator !== '' && numerator !== denominator;
+
+  const choose = (ratioOf: RatioOf | null) => {
+    onChange(ratioOf);
+    setAnchor(null);
+  };
+  const fieldSelect = (label: string, value: string, set: (header: string) => void) => (
+    <TextField
+      select
+      size='small'
+      label={label}
+      value={value}
+      onChange={(e) => set(e.target.value)}
+      sx={{ minWidth: 200 }}
+    >
+      {candidates.map((f) => (
+        <MenuItem key={f.header} value={f.header}>
+          {f.header}
+        </MenuItem>
+      ))}
+    </TextField>
+  );
+
+  return (
+    <>
+      <Button size='small' onClick={(e) => setAnchor(e.currentTarget)}>
+        {field.ratioOf
+          ? `加權：${field.ratioOf.numerator} ÷ ${field.ratioOf.denominator}`
+          : '設定分子分母'}
+      </Button>
+      <Popover
+        open={anchor !== null}
+        anchorEl={anchor}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Stack spacing={1.5} sx={{ p: 2, maxWidth: 320 }}>
+          <Typography variant='body2' color='text.secondary'>
+            分組時改算「分子加總 ÷ 分母加總」，不再是非加權平均。
+          </Typography>
+          {fieldSelect('分子', numerator, setNumerator)}
+          {fieldSelect('分母', denominator, setDenominator)}
+          <Stack direction='row' spacing={1} sx={{ justifyContent: 'flex-end' }}>
+            {field.ratioOf && (
+              <Button color='inherit' onClick={() => choose(null)}>
+                取消加權
+              </Button>
+            )}
+            <Button
+              variant='contained'
+              disabled={!ready}
+              onClick={() => choose({ numerator, denominator })}
+            >
+              套用
+            </Button>
+          </Stack>
+        </Stack>
+      </Popover>
+    </>
   );
 }

@@ -114,7 +114,7 @@ export function hasAnyField(widget: Widget): boolean {
   );
 }
 
-type WidgetBase = Pick<Widget, 'id' | 'title' | 'table' | 'filters'>;
+type WidgetBase = Pick<Widget, 'id' | 'title' | 'description' | 'table' | 'filters'>;
 
 // 產生指定類型的空白 widget。每個 case 分開寫，TypeScript 才能正確推斷聯集型別。
 function emptyWidget(base: WidgetBase, type: WidgetType): Widget {
@@ -137,6 +137,8 @@ function emptyWidget(base: WidgetBase, type: WidgetType): Widget {
       return { ...base, type, encoding: {} };
     case 'kpi':
       return { ...base, type, encoding: {} };
+    case 'text':
+      return { ...base, type, encoding: {}, content: '' };
   }
 }
 
@@ -150,7 +152,10 @@ export function createWidget(type: WidgetType): Widget {
 
 // 清空所有欄位與篩選，同時解除資料表鎖定，讓使用者可以改用別張表。
 export function clearWidget(widget: Widget): Widget {
-  return emptyWidget({ id: widget.id, title: widget.title, table: '', filters: [] }, widget.type);
+  return emptyWidget(
+    { id: widget.id, title: widget.title, description: widget.description, table: '', filters: [] },
+    widget.type,
+  );
 }
 
 // 切換圖表類型時盡量保留欄位：維度依序填入維度槽位、量值填入量值槽位；
@@ -169,8 +174,16 @@ export function convertWidget(widget: Widget, type: WidgetType): Widget {
 
   const title =
     widget.title === WIDGET_TYPE_LABELS[widget.type] ? WIDGET_TYPE_LABELS[type] : widget.title;
+  // 文字元件不綁資料表：轉成文字時清掉資料表與篩選，從文字轉成圖表時由第一個欄位決定資料表。
+  const bound = type !== 'text' && widget.type !== 'text';
   let next = emptyWidget(
-    { id: widget.id, title, table: widget.table, filters: widget.filters },
+    {
+      id: widget.id,
+      title,
+      description: widget.description,
+      table: bound ? widget.table : '',
+      filters: bound ? widget.filters : [],
+    },
     type,
   );
   for (const slot of WIDGET_SLOTS[type]) {

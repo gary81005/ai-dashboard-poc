@@ -1,9 +1,11 @@
 // 折線圖與長條圖（含面積、堆疊、橫式）。資料來自 queryCategorical，每個系列對應一個量值（× 分組值）。
+// 長條圖另可依數值排序、只留前 N 個，以及依門檻為長條上色（ADR 0008），三者合起來就是排名圖。
 
+import { useTheme } from '@mui/material/styles';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { formatCompact, formatValue } from '../../utils/format.ts';
-import { queryCategorical } from '../../utils/query.ts';
+import { queryCategorical, sortCategorical } from '../../utils/query.ts';
 import type { QueryContext } from '../../utils/query.ts';
 import type { BarWidget, LineWidget } from '../../types/index.ts';
 import { runQuery } from '../../utils/runQuery.ts';
@@ -12,21 +14,37 @@ import { ChartArea, QueryFailure, WidgetMessage } from './WidgetParts.tsx';
 type Props = { widget: LineWidget | BarWidget; ctx: QueryContext };
 
 export function CartesianWidget({ widget, ctx }: Props) {
+  const theme = useTheme();
   const { x, y, group } = widget.encoding;
   if (!x || y.length === 0)
     return <WidgetMessage>請設定 X 軸，並放入至少一個數值欄位</WidgetMessage>;
 
   const outcome = runQuery(() => queryCategorical(ctx, x.field, y, group?.field));
   if (!outcome.ok) return <QueryFailure outcome={outcome} />;
-  const result = outcome.value;
+  const result =
+    widget.type === 'bar'
+      ? sortCategorical(outcome.value, widget.options?.sort, widget.options?.limit)
+      : outcome.value;
   if (result.categories.length === 0) return <WidgetMessage>沒有符合條件的資料</WidgetMessage>;
 
   // 座標軸大小用 'auto'：MUI 預設的軸寬高（25px／45px）放不下中文標籤，
   // 超出的文字會被截成空白。
   const axisMeasure = result.series[0].measure;
   const formatAxis = (v: number) => formatCompact(axisMeasure.field, axisMeasure.agg, v);
-  const valueX = { valueFormatter: formatAxis, height: 'auto' as const };
-  const valueY = { valueFormatter: formatAxis, width: 'auto' as const };
+  // 門檻上色：piecewise colorMap 的分段規則和 utils/thresholds.ts 的 toneOf 相同（< warning 紅…）。
+  const thresholds = widget.type === 'bar' ? widget.options?.thresholds : undefined;
+  const palette = (theme.vars ?? theme).palette;
+  const colorMap = thresholds
+    ? {
+        colorMap: {
+          type: 'piecewise' as const,
+          thresholds: [thresholds.warning, thresholds.success],
+          colors: [palette.error.main, palette.warning.main, palette.success.main],
+        },
+      }
+    : {};
+  const valueX = { valueFormatter: formatAxis, height: 'auto' as const, ...colorMap };
+  const valueY = { valueFormatter: formatAxis, width: 'auto' as const, ...colorMap };
   const categoryX = {
     scaleType: 'band' as const,
     data: result.categories,

@@ -11,15 +11,18 @@
 import { create } from 'zustand';
 import type {
   Dashboard,
+  DashboardFilter,
   Dataset,
   DataTable,
   Field,
   LayoutItem,
+  RatioOf,
   Role,
   Widget,
 } from '../types/index.ts';
 
-type FieldPatch = { role?: Role; ratio?: boolean };
+// ratioOf：設定分子分母；null 代表取消加權（ADR 0008）。
+export type FieldPatch = { role?: Role; ratio?: boolean; ratioOf?: RatioOf | null };
 
 // 資料集與儀表板的載入狀態。idle = 尚未登入或剛登出。
 export type LoadStatus =
@@ -59,22 +62,40 @@ type AppState = {
   addWidget: (dashboardId: string, widget: Widget, layoutItem: LayoutItem) => void;
   updateWidget: (dashboardId: string, widget: Widget) => void;
   removeWidget: (dashboardId: string, widgetId: string) => void;
+  setDashboardFilters: (dashboardId: string, filters: DashboardFilter[]) => void;
 };
 
-// 手動切換欄位角色／比率時記下 userOverride，切換資料來源時才知道要沿用（ADR 0003 決策 5）。
-// 改成維度時一併拿掉比率標記，因為維度不會被彙總。
+// 手動切換欄位角色／比率／分子分母時記下 userOverride，切換資料來源時才知道要沿用（ADR 0003 決策 5）。
+// 改成維度時一併拿掉比率標記，因為維度不會被彙總；取消比率時也一併取消加權。
 function patchField(field: Field, patch: FieldPatch): Field {
   const overrides = new Set(field.userOverride);
   const next: Field = { ...field };
+  const dropRatioOf = () => {
+    if (next.ratioOf) overrides.add('ratioOf');
+    delete next.ratioOf;
+  };
   if (patch.role !== undefined) {
     next.role = patch.role;
     overrides.add('role');
-    if (patch.role === 'dimension') delete next.ratio;
+    if (patch.role === 'dimension') {
+      delete next.ratio;
+      dropRatioOf();
+    }
   }
   if (patch.ratio !== undefined) {
     if (patch.ratio) next.ratio = true;
-    else delete next.ratio;
+    else {
+      delete next.ratio;
+      dropRatioOf();
+    }
     overrides.add('ratio');
+  }
+  if (patch.ratioOf !== undefined) {
+    if (patch.ratioOf) {
+      next.ratioOf = patch.ratioOf;
+      next.ratio = true;
+    } else delete next.ratioOf;
+    overrides.add('ratioOf');
   }
   next.userOverride = [...overrides];
   return next;
@@ -187,4 +208,6 @@ export const useAppStore = create<AppState>()((set) => ({
         layout: d.layout.filter((item) => item.i !== widgetId),
       })),
     ),
+  setDashboardFilters: (dashboardId, filters) =>
+    set((s) => editDashboard(s, dashboardId, () => ({ filters }))),
 }));

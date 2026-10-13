@@ -1,6 +1,6 @@
 // 元件設定中的拖放槽：
 //   - Shelf：一般槽位（X 軸、Y 軸、分組…），依 constants/widgetTypes.ts 的定義產生
-//   - DropZone：所有槽位共用的拖放區外框（篩選槽位也使用），負責判斷能不能放
+//   - DropZone：所有槽位共用的拖放區外框（篩選槽位、儀表板篩選列也使用），負責判斷能不能放
 //   - SlotChip：槽位裡的欄位標籤，點擊可改彙總方式；組合圖另可切換長條／折線與左右軸
 
 import { useState } from 'react';
@@ -16,8 +16,8 @@ import Typography from '@mui/material/Typography';
 import { FIELD_DND_TYPE } from '../../constants/dnd.ts';
 import type { SlotDef } from '../../constants/widgetTypes.ts';
 import type { FieldDragItem } from '../../types/dnd.ts';
-import type { Agg, Dataset, Widget } from '../../types/index.ts';
-import { AGG_LABELS, findTable, resolveField } from '../../utils/fields.ts';
+import type { Agg, Dataset, Field, Widget } from '../../types/index.ts';
+import { AGG_LABELS, aggLabel, findTable, resolveField } from '../../utils/fields.ts';
 import {
   addToSlot,
   hasAnyField,
@@ -78,7 +78,7 @@ export function Shelf({ widget, slot, dataset, onChange }: Props) {
           entry={entry}
           slot={slot}
           isCombo={widget.type === 'combo'}
-          missing={!table || !resolveField(table, entry.field)}
+          field={table ? resolveField(table, entry.field) : undefined}
           onChange={(patch) => updateEntry(index, patch)}
           onDelete={() => removeEntry(index)}
         />
@@ -88,7 +88,8 @@ export function Shelf({ widget, slot, dataset, onChange }: Props) {
 }
 
 type DropZoneProps = {
-  widget: Widget;
+  // 沒有 widget 時（儀表板篩選列）不限制資料表。
+  widget?: Widget;
   accepts: (item: FieldDragItem) => boolean;
   onDrop: (item: FieldDragItem) => void;
   label: string;
@@ -98,6 +99,7 @@ type DropZoneProps = {
 };
 
 // 一個 widget 只讀一張資料表（ADR 0005），所以已有欄位後只接受同一張表的欄位。
+// 儀表板篩選列不屬於任何 widget，可以接受任何資料表的欄位。
 // 框線顏色：拖曳中且可放 = 淺藍、懸停且可放 = 藍、懸停但不可放 = 紅。
 export function DropZone({
   widget,
@@ -114,7 +116,8 @@ export function DropZone({
     { isOver: boolean; canDrop: boolean }
   >({
     accept: FIELD_DND_TYPE,
-    canDrop: (item) => accepts(item) && (!hasAnyField(widget) || item.tableKey === widget.table),
+    canDrop: (item) =>
+      accepts(item) && (!widget || !hasAnyField(widget) || item.tableKey === widget.table),
     drop: onDrop,
     collect: (monitor) => ({ isOver: monitor.isOver(), canDrop: monitor.canDrop() }),
   });
@@ -170,17 +173,21 @@ type SlotChipProps = {
   entry: SlotEntry;
   slot: SlotDef;
   isCombo: boolean;
-  missing: boolean;
+  // 目前資料表裡對應的欄位；找不到就是欄位遺失。
+  field: Field | undefined;
   onChange: (patch: Partial<SlotEntry>) => void;
   onDelete: () => void;
 };
 
 // 槽位裡的一個欄位。欄位在目前資料表找不到時顯示紅色的「欄位遺失」。
-function SlotChip({ entry, slot, isCombo, missing, onChange, onDelete }: SlotChipProps) {
+// 有分子分母的比率欄位，加總與平均都是加權比率，選單只列一次（ADR 0008）。
+function SlotChip({ entry, slot, isCombo, field, onChange, onDelete }: SlotChipProps) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const missing = field === undefined;
   const hasMenu = slot.kind !== 'dimension';
+  const aggs = field?.ratioOf ? AGGS.filter((agg) => agg !== 'sum') : AGGS;
   const parts = [entry.field.header];
-  if (entry.agg) parts.push(AGG_LABELS[entry.agg]);
+  if (entry.agg) parts.push(aggLabel(field, entry.agg));
   if (isCombo && slot.kind === 'measures') {
     parts.push(entry.mark === 'line' ? '折線' : '長條', entry.axis === 'right' ? '右軸' : '左軸');
   }
@@ -207,9 +214,9 @@ function SlotChip({ entry, slot, isCombo, missing, onChange, onDelete }: SlotChi
               不彙總（顯示明細）
             </MenuItem>
           )}
-          {AGGS.map((agg) => (
+          {aggs.map((agg) => (
             <MenuItem key={agg} selected={entry.agg === agg} onClick={() => choose({ agg })}>
-              {AGG_LABELS[agg]}
+              {aggLabel(field, agg)}
             </MenuItem>
           ))}
           {isCombo &&

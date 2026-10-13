@@ -6,7 +6,7 @@
 import { createId } from '../utils/ids.ts';
 import { migrateRecord } from '../utils/schema.ts';
 import type { Json } from '../types/database.ts';
-import type { Dataset, Role } from '../types/index.ts';
+import type { Dataset } from '../types/index.ts';
 import { SCHEMA_VERSION } from '../types/index.ts';
 import { parseWorkbook } from './parseWorkbook.ts';
 import { insertDatasetRows } from './datasetRows.ts';
@@ -15,6 +15,7 @@ import { sessionGuard } from './session.ts';
 import { removeSourceFiles, uploadSourceFile } from './sourceFiles.ts';
 import { supabase } from './supabase.ts';
 import { useAppStore } from '../store/appStore.ts';
+import type { FieldPatch } from '../store/appStore.ts';
 import { useRowsStore } from '../store/rowsStore.ts';
 import { useUiStore } from '../store/uiStore.ts';
 
@@ -160,7 +161,7 @@ export function updateField(
   datasetId: string,
   tableKey: string,
   header: string,
-  patch: { role?: Role; ratio?: boolean },
+  patch: FieldPatch,
 ): void {
   useAppStore.getState().updateField(datasetId, tableKey, header, patch);
   persist(datasetId);

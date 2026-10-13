@@ -67,8 +67,9 @@ export function rebindDashboard(dashboard: Dashboard, dataset: Dataset): Dashboa
   return { ...dashboard, datasetId: dataset.id, widgets };
 }
 
-// ADR 0003 決策 5：手動調整過的角色／比率標記，沿用到新資料集裡對應的欄位；
+// ADR 0003 決策 5：手動調整過的角色／比率標記／分子分母，沿用到新資料集裡對應的欄位；
 // 新資料集裡已經被使用者調整過的欄位則不覆蓋。沒有任何變更時回傳原物件。
+// 分子分母要兩欄在新資料表裡都還在才沿用。
 export function carryOverrides(from: Dataset, to: Dataset): Dataset {
   let changed = false;
   const tables = to.tables.map((table) => {
@@ -85,6 +86,15 @@ export function carryOverrides(from: Dataset, to: Dataset): Dataset {
         if (previous.ratio) next.ratio = true;
         else delete next.ratio;
       }
+      if (previous.userOverride.includes('ratioOf')) {
+        const headers = new Set(table.fields.map((f) => f.header));
+        const ratioOf = previous.ratioOf;
+        if (ratioOf && headers.has(ratioOf.numerator) && headers.has(ratioOf.denominator)) {
+          next.ratioOf = ratioOf;
+          next.ratio = true;
+        } else delete next.ratioOf;
+      }
+      if (next.role === 'dimension' || !next.ratio) delete next.ratioOf;
       if (next.role === 'dimension') delete next.ratio;
       return next;
     });

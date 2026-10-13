@@ -1,11 +1,12 @@
 // 儀表板的格線版面（react-grid-layout）：總寬 12 欄、每列高 80px。
 //
 // 檢視模式下固定不動；編輯模式下拖動標題可移動、拖動右下角可縮放，結果寫回 dashboard.layout。
-// 每一格放一個 WidgetCard；篩選、刪除、選取等操作由這裡接到 store。
+// 每一格放一個 WidgetCard；篩選、刪除、選取等操作由這裡接到 store，儀表板篩選的值也從這裡傳下去。
 
 import GridLayout, { useContainerWidth } from 'react-grid-layout';
 import type { Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
+import { useDashboardFilterValues } from '../../hooks/useDashboardFilterValues.ts';
 import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { Dashboard, Dataset, DatasetRows } from '../../types/index.ts';
@@ -24,6 +25,7 @@ export function DashboardGrid({ dashboard, dataset, rows }: Props) {
   const updateLayout = useAppStore((s) => s.updateLayout);
   const removeWidget = useAppStore((s) => s.removeWidget);
   const updateWidget = useAppStore((s) => s.updateWidget);
+  const filterValues = useDashboardFilterValues(dashboard.id);
 
   // react-grid-layout 初次掛載時也會回報一次（沒變動的）版面，只有真的變動才存檔。
   const handleLayoutChange = (layout: Layout) => {
@@ -58,6 +60,8 @@ export function DashboardGrid({ dashboard, dataset, rows }: Props) {
                 widget={widget}
                 dataset={dataset}
                 rows={rows}
+                dashboardFilters={dashboard.filters}
+                filterValues={filterValues}
                 editing={editing}
                 selected={editing && selectedWidgetId === widget.id}
                 onSelect={() => selectWidget(widget.id)}

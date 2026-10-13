@@ -19,6 +19,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { DashboardFilterBar } from '../components/dashboard/DashboardFilterBar.tsx';
 import { DashboardGrid } from '../components/dashboard/DashboardGrid.tsx';
 import { RebindDialog } from '../components/dashboard/RebindDialog.tsx';
 import { AddWidgetButton } from '../components/editor/AddWidgetButton.tsx';
@@ -169,7 +170,15 @@ function DashboardContent({ dashboard, dataset, editing }: ContentProps) {
       ) : dashboard.widgets.length === 0 ? (
         <Alert severity='info'>這個儀表板還沒有元件，點右上角的「編輯」開始新增。</Alert>
       ) : (
-        <DashboardGrid dashboard={dashboard} dataset={dataset} rows={entry.rows} />
+        <Stack spacing={2}>
+          <DashboardFilterBar
+            dashboard={dashboard}
+            dataset={dataset}
+            rows={entry.rows}
+            editing={false}
+          />
+          <DashboardGrid dashboard={dashboard} dataset={dataset} rows={entry.rows} />
+        </Stack>
       );
   }
 }
@@ -206,13 +215,14 @@ function EditWorkspace({
           alignItems: 'start',
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
+        <Stack spacing={2} sx={{ minWidth: 0 }}>
+          <DashboardFilterBar dashboard={dashboard} dataset={dataset} rows={rows} editing />
           {dashboard.widgets.length === 0 ? (
             <Alert severity='info'>點右上角的「＋ 新增元件」加入第一個元件。</Alert>
           ) : (
             <DashboardGrid dashboard={dashboard} dataset={dataset} rows={rows} />
           )}
-        </Box>
+        </Stack>
         <Box sx={sidePanel}>
           <FieldPanel dataset={dataset} selectedWidget={selectedWidget} />
         </Box>

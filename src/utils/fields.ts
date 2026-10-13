@@ -30,7 +30,14 @@ export const AGG_LABELS: Record<Agg, string> = {
   max: '最大',
 };
 
-// 圖例與欄名用的標籤：加總是預設，所以不另外標示；其他彙總方式加上括號說明。
+// 彙總方式的顯示文字。有分子分母的比率欄位，加總與平均都是加權比率（ADR 0008）。
+export function aggLabel(field: Field | undefined, agg: Agg): string {
+  if (field?.ratioOf && (agg === 'sum' || agg === 'avg')) return '加權比率';
+  return AGG_LABELS[agg];
+}
+
+// 圖例與欄名用的標籤：加總與加權比率是預設，所以不另外標示；其他彙總方式加上括號說明。
 export function measureLabel(field: Field, agg: Agg): string {
-  return agg === 'sum' ? field.header : `${field.header}（${AGG_LABELS[agg]}）`;
+  if (agg === 'sum' || aggLabel(field, agg) === '加權比率') return field.header;
+  return `${field.header}（${AGG_LABELS[agg]}）`;
 }

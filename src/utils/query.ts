@@ -16,6 +16,7 @@ import type {
   Filter,
   Measure,
   Row,
+  SortOrder,
 } from '../types/index.ts';
 
 // 欄位參照在目前的資料表找不到時丟出，帶著原本的參照供畫面顯示。
@@ -85,9 +86,32 @@ export function orderCategories(rows: readonly Row[], field: Field): string[] {
   return ordered;
 }
 
+// 有分子分母的比率欄位，加總與平均都改算「分子加總 ÷ 分母加總」（ADR 0008）。
+// 最小、最大仍取每一列自己的比率。
+function isWeighted(field: Field, agg: Agg): boolean {
+  return field.ratioOf !== undefined && (agg === 'sum' || agg === 'avg');
+}
+
+// 加權比率：只計入分子、分母都是數字的列，例如只有部分月份有拜訪目標時，
+// 沒有目標的月份不會把實際拜訪數算進分子。分母加總為 0 時回傳 null。
+function weightedRatio(rows: readonly Row[], field: Field): number | null {
+  const { numerator, denominator } = field.ratioOf!;
+  let num = 0;
+  let den = 0;
+  for (const row of rows) {
+    const n = row[numerator];
+    const d = row[denominator];
+    if (typeof n !== 'number' || typeof d !== 'number') continue;
+    num += n;
+    den += d;
+  }
+  return den === 0 ? null : num / den;
+}
+
 // 彙總一組資料列：count 計算非空白的值；其他方式只計算數字（文字被忽略），
 // 沒有任何數字時回傳 null（圖表上會留空）。
 function aggregate(rows: readonly Row[], field: Field, agg: Agg): number | null {
+  if (isWeighted(field, agg)) return weightedRatio(rows, field);
   let present = 0;
   let numeric = 0;
   let sum = 0;
@@ -119,8 +143,14 @@ function aggregate(rows: readonly Row[], field: Field, agg: Agg): number | null 
 }
 
 // 比率欄位只有在「多列被合併成一個數字」時才會算錯，用來決定是否顯示「⚠ 非加權平均」。
+// 加權比率不會算錯，所以不提示。
 function mergesRatio(measure: ResolvedMeasure, rows: readonly Row[]): boolean {
-  return measure.field.ratio === true && measure.agg !== 'count' && rows.length > 1;
+  return (
+    measure.field.ratio === true &&
+    measure.agg !== 'count' &&
+    !isWeighted(measure.field, measure.agg) &&
+    rows.length > 1
+  );
 }
 
 // 依一個或多個欄位的值把資料列分桶；鍵值以不可見字元串接，避免值本身含分隔符號時衝突。
@@ -190,6 +220,39 @@ export function queryCategorical(
     })),
   );
   return { xField, categories, series, unweightedRatio };
+}
+
+// 依第一個量值排序分類（有分組時用各組的合計），再只留前 limit 個；
+// 用於排名類的長條圖。沒有值的分類排在最後。
+export function sortCategorical(
+  result: CategoricalResult,
+  order: SortOrder | undefined,
+  limit?: number,
+): CategoricalResult {
+  if (!order && !limit) return result;
+  let indexes = result.categories.map((_, i) => i);
+  if (order) {
+    const first = result.series.filter((s) => s.measureIndex === 0);
+    const totals = indexes.map((i) =>
+      first.reduce<number | null>((sum, s) => {
+        const v = s.data[i];
+        return v === null ? sum : (sum ?? 0) + v;
+      }, null),
+    );
+    const sign = order === 'asc' ? 1 : -1;
+    indexes = indexes.sort((a, b) => {
+      const va = totals[a];
+      const vb = totals[b];
+      if (va === null || vb === null) return va === null ? (vb === null ? 0 : 1) : -1;
+      return sign * (va - vb);
+    });
+  }
+  if (limit && limit > 0) indexes = indexes.slice(0, limit);
+  return {
+    ...result,
+    categories: indexes.map((i) => result.categories[i]),
+    series: result.series.map((s) => ({ ...s, data: indexes.map((i) => s.data[i]) })),
+  };
 }
 
 export type PieResult = {
@@ -305,8 +368,31 @@ export type TableResultColumn = { key: string; field: Field; agg?: Agg; label: s
 export type TableResult = {
   columns: TableResultColumn[];
   rows: Array<Record<string, CellValue>>;
+  // 合計列：每一欄對全部（篩選後）資料列彙總；不能合計的欄位（維度、非加權比率）是 null。
+  totals: Record<string, number | null>;
   unweightedRatio: boolean;
 };
+
+// 合計列每一欄的彙總方式：有設彙總就沿用；明細表的量值欄預設加總。
+// 沒有分子分母的比率欄位加總沒有意義，不合計。
+function totalAgg(column: TableResultColumn): Agg | undefined {
+  if (column.agg) return column.agg;
+  if (column.field.role !== 'measure') return undefined;
+  if (column.field.ratio && !column.field.ratioOf) return undefined;
+  return 'sum';
+}
+
+function tableTotals(
+  rows: readonly Row[],
+  columns: readonly TableResultColumn[],
+): Record<string, number | null> {
+  return Object.fromEntries(
+    columns.map((c) => {
+      const agg = totalAgg(c);
+      return [c.key, agg ? aggregate(rows, c.field, agg) : null];
+    }),
+  );
+}
 
 // 資料表格：所有欄位都不彙總時顯示明細列；只要有一欄設了彙總，就依其他欄位分組成摘要表。
 export function queryTable(
@@ -331,6 +417,7 @@ export function queryTable(
       rows: rows.map((row) =>
         Object.fromEntries(resolved.map((c) => [c.key, row[c.field.header]])),
       ),
+      totals: tableTotals(rows, resolved),
       unweightedRatio: false,
     };
   }
@@ -352,5 +439,5 @@ export function queryTable(
       }),
     ),
   );
-  return { columns: resolved, rows: summary, unweightedRatio };
+  return { columns: resolved, rows: summary, totals: tableTotals(rows, resolved), unweightedRatio };
 }

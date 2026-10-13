@@ -11,7 +11,7 @@ function decimalsOf(numFmt: string): number {
 }
 
 // 比率欄位且格式是百分比時，以百分比顯示（資料以小數儲存，0.227 → 22.7%）。
-function isPercent(field: Field): boolean {
+export function isPercent(field: Field): boolean {
   return (
     field.ratio === true && (field.dataType === 'percent' || (field.numFmt?.includes('%') ?? false))
   );

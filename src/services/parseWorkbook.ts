@@ -5,11 +5,12 @@
 //   2. readSheet：逐張工作表驗證（合併儲存格、標頭空白／重複、沒有資料列 → 跳過並記錄原因），
 //      讀出資料列，同時統計每欄的值型別
 //   3. readDictionary：若有「欄位定義」工作表，取出欄位代碼、型別、單位
-//   4. buildField：決定每個欄位的 dataType、role（維度／量值）、ratio（規則在 utils/inference.ts）
+//   4. buildField：決定每個欄位的 dataType、role（維度／量值）、ratio（規則在 utils/inference.ts），
+//      以及加權比率的分子分母（ratioOf，從公式認出來，ADR 0008）
 
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
-import type { Worksheet } from 'exceljs';
+import type { Cell, Worksheet } from 'exceljs';
 import { DICTIONARY_TYPES, inferRatio, inferRole } from '../utils/inference.ts';
 import type {
   CellValue,
@@ -17,6 +18,7 @@ import type {
   DataType,
   DatasetRows,
   Field,
+  RatioOf,
   Row,
   SkippedSheet,
 } from '../types/index.ts';
@@ -34,7 +36,11 @@ const DICTIONARY_HEADERS = ['工作表', '中文欄名', '欄位代碼', '資料
 
 type Primitive = string | number | boolean | Date | null;
 
+// 公式「分子/分母」指到的兩欄，以資料表內的欄位順序（從 0 起算）表示。
+type RatioColumns = { numerator: number; denominator: number };
+
 // 讀取資料列時順便統計每欄各種值的數量，供沒有欄位定義時推斷型別。
+// ratio：這一欄的公式都是同一組「分子/分母」時記下來；undefined = 沒有公式，null = 公式不一致。
 type ColumnStats = {
   dates: number;
   numbers: number;
@@ -42,6 +48,7 @@ type ColumnStats = {
   others: number;
   numFmt?: string;
   values: CellValue[];
+  ratio?: RatioColumns | null;
 };
 
 // 通過驗證、還沒套用欄位定義的資料表。
@@ -86,6 +93,12 @@ function unwrap(value: unknown): Primitive {
   return null;
 }
 
+// 資料儲存格的值；公式取快取的計算結果。不能用 cell.value 再取 result：
+// ExcelJS 的 cell.value 只複製 truthy 的屬性，結果是 0 的公式會被當成沒有結果（空白），cell.result 才保留 0。
+function cellValue(cell: Cell): Primitive {
+  return unwrap(cell.formula ? cell.result : cell.value);
+}
+
 // 轉成要存進資料庫的值：日期以 UTC 格式化成字串（避免時區偏移一天，ADR 0002），字串去頭尾空白。
 function toCellValue(value: Primitive): CellValue {
   if (value instanceof Date) {
@@ -107,6 +120,55 @@ function columnLetters(index: number): string {
     letters = String.fromCharCode(65 + ((n - 1) % 26)) + letters;
   }
   return letters;
+}
+
+const REF = String.raw`\$?([A-Z]{1,3})\$?(\d+)`;
+const DIVIDE = new RegExp(String.raw`^${REF}\s*/\s*${REF}$`, 'i');
+const GUARDED_DIVIDE = new RegExp(
+  String.raw`^IF\(\s*${REF}\s*=\s*0\s*,\s*(?:0|"")\s*,\s*${REF}\s*/\s*${REF}\s*\)$`,
+  'i',
+);
+
+// 認出「分子/分母」與「IF(分母=0, 0 或 "", 分子/分母)」兩種寫法，而且都指向同一列的儲存格。
+// 回傳兩欄在資料表內的位置；其他公式（跨工作表、SUM、差額等）不處理。
+function ratioColumns(formula: string, row: number, left: number): RatioColumns | undefined {
+  const text = formula.replace(/^=/, '').trim();
+  let refs: Array<[string, string]>;
+  const guarded = GUARDED_DIVIDE.exec(text);
+  const plain = guarded ? null : DIVIDE.exec(text);
+  if (guarded) {
+    const [, guardCol, guardRow, numCol, numRow, denCol, denRow] = guarded;
+    if (guardCol.toUpperCase() !== denCol.toUpperCase() || guardRow !== denRow) return undefined;
+    refs = [
+      [numCol, numRow],
+      [denCol, denRow],
+    ];
+  } else if (plain) {
+    refs = [
+      [plain[1], plain[2]],
+      [plain[3], plain[4]],
+    ];
+  } else {
+    return undefined;
+  }
+  if (refs.some(([, r]) => Number(r) !== row)) return undefined;
+  return {
+    numerator: columnIndex(refs[0][0]) - left,
+    denominator: columnIndex(refs[1][0]) - left,
+  };
+}
+
+// 同一欄的每個公式都要指向同一組分子分母，否則視為不一致（null），不做加權。
+function mergeRatio(
+  current: RatioColumns | null | undefined,
+  found: RatioColumns | undefined,
+): RatioColumns | null {
+  if (!found) return null;
+  if (current === undefined) return found;
+  if (current === null) return null;
+  return current.numerator === found.numerator && current.denominator === found.denominator
+    ? current
+    : null;
 }
 
 // 解析 'A1:T97' 這種範圍字串。
@@ -180,12 +242,15 @@ function readSheet(ws: Worksheet): PendingTable | SkippedSheet {
     let empty = true;
     headers.forEach((header, i) => {
       const cell = excelRow.getCell(range.left + i);
-      const raw = unwrap(cell.value);
+      const raw = cellValue(cell);
       const value = toCellValue(raw);
       row[header] = value;
+      const stat = stats[i];
+      // 分母為 0 時公式結果是空白，但公式本身仍要檢查。
+      if (cell.formula)
+        stat.ratio = mergeRatio(stat.ratio, ratioColumns(cell.formula, r, range.left));
       if (value === null || value === '') return;
       empty = false;
-      const stat = stats[i];
       stat.values.push(value);
       if (raw instanceof Date) stat.dates += 1;
       else if (typeof raw === 'number') {
@@ -248,11 +313,31 @@ function inferDataType(stat: ColumnStats): DataType {
   return 'text';
 }
 
+// 公式指到的分子分母欄位，必須在同一張資料表內、不是自己，而且兩欄都是數值欄位。
+function ratioOf(
+  index: number,
+  ratio: RatioColumns | null | undefined,
+  headers: readonly string[],
+  stats: readonly ColumnStats[],
+): RatioOf | undefined {
+  if (!ratio) return undefined;
+  const { numerator, denominator } = ratio;
+  const valid = [numerator, denominator].every(
+    (i) => i >= 0 && i < headers.length && i !== index && stats[i].others === 0,
+  );
+  return valid ? { numerator: headers[numerator], denominator: headers[denominator] } : undefined;
+}
+
 // 組出最終的欄位中繼資料：欄位定義優先，其次推斷；角色與比率規則見 utils/inference.ts。
-function buildField(header: string, stat: ColumnStats, entry: DictionaryEntry | undefined): Field {
+// 認得出分子分母的公式欄位一定是比率（ADR 0008），即使格式不是百分比（例如「個/台」）。
+function buildField(table: PendingTable, index: number, entry: DictionaryEntry | undefined): Field {
+  const header = table.headers[index];
+  const stat = table.stats[index];
   const dataType = entry?.dataType ?? inferDataType(stat);
   const role = inferRole(header, dataType, stat.values);
-  const ratio = role === 'measure' && inferRatio(dataType, stat.numFmt);
+  const weighted =
+    role === 'measure' ? ratioOf(index, stat.ratio, table.headers, table.stats) : undefined;
+  const ratio = weighted !== undefined || (role === 'measure' && inferRatio(dataType, stat.numFmt));
   return {
     header,
     ...(entry?.code ? { code: entry.code } : {}),
@@ -261,6 +346,7 @@ function buildField(header: string, stat: ColumnStats, entry: DictionaryEntry | 
     ...(stat.numFmt ? { numFmt: stat.numFmt } : {}),
     role,
     ...(ratio ? { ratio: true } : {}),
+    ...(weighted ? { ratioOf: weighted } : {}),
   };
 }
 
@@ -289,7 +375,7 @@ export async function parseWorkbook(buffer: ArrayBuffer): Promise<ParsedWorkbook
       hidden: t.hidden,
       rowCount: t.rows.length,
       fields: t.headers.map((header, i) =>
-        buildField(header, t.stats[i], dictionary.get(dictionaryKey(t.sheetName, header))),
+        buildField(t, i, dictionary.get(dictionaryKey(t.sheetName, header))),
       ),
     };
   });

@@ -15,6 +15,7 @@ export const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
   gauge: '儀表圖',
   kpi: 'KPI 卡',
   table: '資料表格',
+  text: '文字',
 };
 
 export const WIDGET_TYPES = Object.keys(WIDGET_TYPE_LABELS) as WidgetType[];
@@ -65,6 +66,8 @@ export const WIDGET_SLOTS: Record<WidgetType, SlotDef[]> = {
       hint: '全部不彙總時顯示明細；有彙總時依其他欄位分組',
     },
   ],
+  // 文字元件不綁資料表，沒有槽位。
+  text: [],
 };
 
 // 新增元件時的預設大小（格線單位：總寬 12 欄、每列高 80px）。
@@ -78,4 +81,5 @@ export const DEFAULT_WIDGET_SIZE: Record<WidgetType, { w: number; h: number }> =
   gauge: { w: 3, h: 3 },
   kpi: { w: 3, h: 3 },
   table: { w: 6, h: 4 },
+  text: { w: 12, h: 2 },
 };
