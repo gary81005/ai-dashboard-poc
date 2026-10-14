@@ -83,7 +83,7 @@ export function WorkbookActions({ showSample = true, stayOnPage = false }: Props
   };
 
   return (
-    <Stack direction='row' spacing={1.5}>
+    <Stack direction='row' useFlexGap sx={{ flexWrap: 'wrap', gap: 1.5 }}>
       <input
         ref={inputRef}
         type='file'

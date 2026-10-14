@@ -52,18 +52,19 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
         <Stack spacing={2}>
           <Stack
             direction='row'
-            spacing={2}
+            useFlexGap
             onClick={() => setExpanded(!expanded)}
-            sx={{ alignItems: 'flex-start', cursor: 'pointer' }}
+            sx={{ alignItems: 'flex-start', cursor: 'pointer', flexWrap: 'wrap', gap: 2 }}
           >
-            <Stack spacing={0.5} sx={{ flex: 1, minWidth: 0 }}>
+            {/* flex-basis 讓手機上按鈕換到下一行，而不是把名稱擠成一字一行。 */}
+            <Stack spacing={0.5} sx={{ flex: '1 1 240px', minWidth: 0 }}>
               <Typography variant='h6' component='h3'>
                 {dataset.name}
               </Typography>
               <Typography variant='body2' color='text.secondary'>
                 {dataset.fileName}・上傳於 {dayjs(dataset.uploadedAt).format('YYYY-MM-DD HH:mm')}
               </Typography>
-              <Stack direction='row' spacing={1} sx={{ pt: 0.5 }}>
+              <Stack direction='row' useFlexGap sx={{ pt: 0.5, flexWrap: 'wrap', gap: 1 }}>
                 <Chip size='small' label={`${visibleCount} 張可用資料表`} />
                 {usedBy.length > 0 && (
                   <Chip size='small' variant='outlined' label={`${usedBy.length} 個儀表板使用中`} />

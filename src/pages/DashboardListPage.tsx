@@ -49,7 +49,7 @@ export function DashboardListPage() {
 
   return (
     <Stack spacing={3} sx={{ maxWidth: 1200, mx: 'auto' }}>
-      <Stack direction='row' spacing={1.5} sx={{ alignItems: 'center' }}>
+      <Stack direction='row' useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}>
         <Typography variant='h5' component='h2' sx={{ flex: 1 }}>
           儀表板
         </Typography>
@@ -69,7 +69,7 @@ export function DashboardListPage() {
       </Stack>
 
       {dashboards.length === 0 ? (
-        <Paper variant='outlined' sx={{ p: 6 }}>
+        <Paper variant='outlined' sx={{ p: { xs: 3, sm: 6 } }}>
           <Stack spacing={2} sx={{ alignItems: 'center', textAlign: 'center' }}>
             <Typography variant='h6'>還沒有任何儀表板</Typography>
             <Typography color='text.secondary'>
@@ -83,7 +83,8 @@ export function DashboardListPage() {
           sx={{
             display: 'grid',
             gap: 2,
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            // min() 讓卡片在比 300px 還窄的手機上縮成整列，而不是撐出水平捲軸。
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(300px, 100%), 1fr))',
           }}
         >
           {dashboards.map((dashboard) => (

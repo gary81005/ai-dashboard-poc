@@ -1,6 +1,8 @@
 // 儀表板的格線版面（react-grid-layout）：總寬 12 欄、每列高 80px。
 //
 // 檢視模式下固定不動；編輯模式下拖動標題可移動、拖動右下角可縮放，結果寫回 dashboard.layout。
+// 格線寬度不到 900px 時改成兩欄或一欄，依存下來的版面自動重排（utils/responsiveLayout.ts，ADR 0009）；
+// 重排後的版面只用來顯示，不能拖動，也不會寫回。
 // 每一格放一個 WidgetCard；篩選、刪除、選取等操作由這裡接到 store，儀表板篩選的值也從這裡傳下去。
 
 import GridLayout, { useContainerWidth } from 'react-grid-layout';
@@ -10,12 +12,11 @@ import { useDashboardFilterValues } from '../../hooks/useDashboardFilterValues.t
 import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { Dashboard, Dataset, DatasetRows } from '../../types/index.ts';
+import { GRID_COLS, columnsFor, reflowLayout } from '../../utils/responsiveLayout.ts';
 import { sameLayout } from '../../utils/widgetEditing.ts';
 import { WidgetCard } from '../widgets/WidgetCard.tsx';
 
 type Props = { dashboard: Dashboard; dataset: Dataset; rows: DatasetRows };
-
-const GRID_COLS = 12;
 
 export function DashboardGrid({ dashboard, dataset, rows }: Props) {
   const { width, containerRef, mounted } = useContainerWidth();
@@ -27,10 +28,14 @@ export function DashboardGrid({ dashboard, dataset, rows }: Props) {
   const updateWidget = useAppStore((s) => s.updateWidget);
   const filterValues = useDashboardFilterValues(dashboard.id);
 
+  const cols = columnsFor(width);
+  const reflowed = cols !== GRID_COLS;
+  const movable = editing && !reflowed;
+
   // react-grid-layout 初次掛載時也會回報一次（沒變動的）版面，只有真的變動才存檔。
   const handleLayoutChange = (layout: Layout) => {
     const next = layout.map(({ i, x, y, w, h }) => ({ i, x, y, w, h }));
-    if (editing && !sameLayout(next, dashboard.layout)) updateLayout(dashboard.id, next);
+    if (movable && !sameLayout(next, dashboard.layout)) updateLayout(dashboard.id, next);
   };
 
   const handleRemove = (widgetId: string) => {
@@ -43,15 +48,15 @@ export function DashboardGrid({ dashboard, dataset, rows }: Props) {
       {mounted && (
         <GridLayout
           width={width}
-          layout={dashboard.layout}
+          layout={reflowLayout(dashboard.layout, cols)}
           gridConfig={{
-            cols: GRID_COLS,
+            cols,
             rowHeight: 80,
-            margin: [16, 16],
+            margin: reflowed ? [12, 12] : [16, 16],
             containerPadding: [0, 0],
           }}
-          dragConfig={{ enabled: editing, handle: '.widget-drag-handle' }}
-          resizeConfig={{ enabled: editing }}
+          dragConfig={{ enabled: movable, handle: '.widget-drag-handle' }}
+          resizeConfig={{ enabled: movable }}
           onLayoutChange={handleLayoutChange}
         >
           {dashboard.widgets.map((widget) => (

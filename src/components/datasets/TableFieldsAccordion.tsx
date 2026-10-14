@@ -40,7 +40,11 @@ export function TableFieldsAccordion({ datasetId, table }: Props) {
   return (
     <Accordion disableGutters variant='outlined' sx={{ opacity: table.hidden ? 0.6 : 1 }}>
       <AccordionSummary>
-        <Stack direction='row' spacing={1.5} sx={{ alignItems: 'center', flex: 1, minWidth: 0 }}>
+        <Stack
+          direction='row'
+          useFlexGap
+          sx={{ alignItems: 'center', flex: 1, minWidth: 0, flexWrap: 'wrap', columnGap: 1.5 }}
+        >
           <Typography sx={{ fontWeight: 600 }}>{table.sheetName}</Typography>
           <Typography variant='body2' color='text.secondary' sx={{ fontFamily: 'monospace' }}>
             {table.key !== table.sheetName ? table.key : ''}

@@ -65,7 +65,7 @@ export function WidgetFilterControl({ widget, table, rows, onChange }: Props) {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <Stack spacing={2} sx={{ p: 2, width: 320 }}>
+        <Stack spacing={2} sx={{ p: 2, width: 320, maxWidth: 'calc(100vw - 32px)' }}>
           <Typography variant='subtitle2'>篩選「{widget.title || '未命名'}」</Typography>
           {widget.filters.length === 0 && (
             <Typography variant='body2' color='text.secondary'>

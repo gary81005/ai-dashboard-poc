@@ -14,14 +14,18 @@ export function DatasetLibraryPage() {
 
   return (
     <Stack spacing={3} sx={{ maxWidth: 1200, mx: 'auto' }}>
-      <Stack direction='row' sx={{ alignItems: 'center', justifyContent: 'space-between' }}>
+      <Stack
+        direction='row'
+        useFlexGap
+        sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}
+      >
         <Typography variant='h5' component='h2'>
           資料集
         </Typography>
         <WorkbookActions />
       </Stack>
       {datasets.length === 0 ? (
-        <Paper variant='outlined' sx={{ p: 6, textAlign: 'center' }}>
+        <Paper variant='outlined' sx={{ p: { xs: 3, sm: 6 }, textAlign: 'center' }}>
           <Typography variant='h6' gutterBottom>
             還沒有任何資料集
           </Typography>

@@ -2,6 +2,7 @@
 //
 // 用哪些欄位篩選是儀表板設定（dashboard.filters，要儲存）；選了哪些值只在當次瀏覽有效（uiStore）。
 // 編輯模式下把維度欄位從欄位清單拖到這裡新增篩選；DropZone 用到 react-dnd，只能在編輯模式渲染。
+// 手機上每個下拉佔滿整列（ADR 0009）。
 
 import Autocomplete from '@mui/material/Autocomplete';
 import Button from '@mui/material/Button';
@@ -98,7 +99,7 @@ type FilterSelectProps = {
 function FilterSelect({ filter, options, value, missing, onChange, onRemove }: FilterSelectProps) {
   const choices = [...value.filter((v) => !options.includes(v)), ...options];
   return (
-    <Stack direction='row' sx={{ alignItems: 'center' }}>
+    <Stack direction='row' sx={{ alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
       <Autocomplete
         multiple
         size='small'
@@ -108,7 +109,7 @@ function FilterSelect({ filter, options, value, missing, onChange, onRemove }: F
         value={value}
         onChange={(_, next) => onChange(next)}
         noOptionsText='沒有可選的值'
-        sx={{ width: 280 }}
+        sx={{ width: { xs: '100%', sm: 280 }, flex: { xs: 1, sm: 'none' } }}
         renderInput={(params) => (
           <TextField
             {...params}

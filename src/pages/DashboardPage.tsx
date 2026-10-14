@@ -6,6 +6,9 @@
 // （ADR 0007）。換頁、登出時的提醒由 uiStore.leave 處理，關閉或重新整理分頁時用 beforeunload 提醒。
 //
 // 結構：DashboardPage（標題列與對話框）→ DashboardContent（等資料列載入）→ DashboardGrid 或 EditWorkspace。
+//
+// 響應式（ADR 0009）：編輯模式需要寬度 1200px 以上（lg），更窄時「編輯」按鈕停用，編輯中變窄就自動回到
+// 檢視模式（未儲存的變更仍保留）。md 以下，標題列換行，「切換資料來源」「匯出 JSON」收進「更多」選單。
 
 import { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
@@ -15,10 +18,15 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
+import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import type { Theme } from '@mui/material/styles';
 import { DashboardFilterBar } from '../components/dashboard/DashboardFilterBar.tsx';
 import { DashboardGrid } from '../components/dashboard/DashboardGrid.tsx';
 import { RebindDialog } from '../components/dashboard/RebindDialog.tsx';
@@ -46,6 +54,13 @@ export function DashboardPage() {
   const notify = useUiStore((s) => s.notify);
   const [rebinding, setRebinding] = useState(false);
   const saving = useAppStore((s) => s.saving);
+  const wide = useMediaQuery((theme: Theme) => theme.breakpoints.up('lg'), { noSsr: true });
+  const compact = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'), { noSsr: true });
+
+  // 編輯中把視窗縮窄（或平板轉成直向）時回到檢視模式；修改仍在 draftBase，不會遺失。
+  useEffect(() => {
+    if (editing && !wide) setEditing(false);
+  }, [editing, wide, setEditing]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -76,9 +91,16 @@ export function DashboardPage() {
     );
   }
 
+  const exportJson = () =>
+    downloadJson(`${dashboard.name}.dashboard.json`, buildExport(dashboard, dataset));
+
   return (
     <Stack spacing={2}>
-      <Stack direction='row' spacing={2} sx={{ alignItems: 'center' }}>
+      <Stack
+        direction='row'
+        useFlexGap
+        sx={{ alignItems: 'center', flexWrap: 'wrap', gap: { xs: 1, md: 2 } }}
+      >
         <Button onClick={() => navigate('dashboards')}>← 儀表板清單</Button>
         {editing ? (
           <TextField
@@ -89,22 +111,37 @@ export function DashboardPage() {
             sx={{ flex: 1, maxWidth: 420 }}
           />
         ) : (
-          <Typography variant='h5' component='h2' noWrap>
+          <Typography
+            variant='h5'
+            component='h2'
+            noWrap
+            title={dashboard.name}
+            sx={{ flex: '1 1 160px', minWidth: 0, fontSize: { xs: '1.25rem', sm: undefined } }}
+          >
             {dashboard.name}
           </Typography>
         )}
-        <Box sx={{ flex: 1 }} />
-        {dataset && <Chip variant='outlined' label={`資料集：${dataset.name}`} />}
-        {!editing && <Button onClick={() => setRebinding(true)}>切換資料來源</Button>}
-        {!editing && (
-          <Button
-            onClick={() =>
-              downloadJson(`${dashboard.name}.dashboard.json`, buildExport(dashboard, dataset))
-            }
-          >
-            匯出 JSON
-          </Button>
+        {dataset && (
+          <Chip
+            variant='outlined'
+            label={`資料集：${dataset.name}`}
+            sx={{ display: { xs: 'none', md: 'inline-flex' }, maxWidth: 280 }}
+          />
         )}
+        {!editing &&
+          (compact ? (
+            <MoreMenu
+              items={[
+                { label: '切換資料來源', onClick: () => setRebinding(true) },
+                { label: '匯出 JSON', onClick: exportJson },
+              ]}
+            />
+          ) : (
+            <>
+              <Button onClick={() => setRebinding(true)}>切換資料來源</Button>
+              <Button onClick={exportJson}>匯出 JSON</Button>
+            </>
+          ))}
         {dataset && editing && <AddWidgetButton dashboard={dashboard} />}
         {dirty && <Chip color='warning' variant='outlined' label='未儲存' />}
         {dirty && (
@@ -120,11 +157,24 @@ export function DashboardPage() {
         >
           儲存
         </Button>
-        {dataset && (
-          <Button variant={editing ? 'contained' : 'outlined'} onClick={() => setEditing(!editing)}>
-            {editing ? '完成編輯' : '編輯'}
-          </Button>
-        )}
+        {dataset &&
+          (editing || wide ? (
+            <Button
+              variant={editing ? 'contained' : 'outlined'}
+              onClick={() => setEditing(!editing)}
+            >
+              {editing ? '完成編輯' : '編輯'}
+            </Button>
+          ) : (
+            <Tooltip title='編輯需要寬度 1200px 以上的螢幕，請放大視窗或改用電腦'>
+              {/* 停用的按鈕不會觸發滑鼠事件，Tooltip 要包一層 span 才會顯示。 */}
+              <span>
+                <Button variant='outlined' disabled>
+                  編輯
+                </Button>
+              </span>
+            </Tooltip>
+          ))}
       </Stack>
       {dataset ? (
         <DashboardContent dashboard={dashboard} dataset={dataset} editing={editing} />
@@ -246,5 +296,30 @@ function EditWorkspace({
         </Box>
       </Box>
     </DndProvider>
+  );
+}
+
+type MoreItem = { label: string; onClick: () => void };
+
+// 窄螢幕的「更多」選單：放次要的動作，讓標題列不會擠成好幾行。
+function MoreMenu({ items }: { items: MoreItem[] }) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  return (
+    <>
+      <Button onClick={(e) => setAnchor(e.currentTarget)}>更多 ▾</Button>
+      <Menu anchorEl={anchor} open={anchor !== null} onClose={() => setAnchor(null)}>
+        {items.map((item) => (
+          <MenuItem
+            key={item.label}
+            onClick={() => {
+              setAnchor(null);
+              item.onClick();
+            }}
+          >
+            {item.label}
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
   );
 }
