@@ -23,16 +23,9 @@ import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import type { DataTable, DataType, Field, RatioOf, Role } from '../../types/index.ts';
+import type { DataTable, Field, RatioOf, Role } from '../../types/index.ts';
 import { setTableHidden, updateField } from '../../services/datasetService.ts';
-
-const DATA_TYPE_LABELS: Record<DataType, string> = {
-  text: '文字',
-  integer: '整數',
-  number: '數值',
-  percent: '百分比',
-  date: '日期',
-};
+import { DATA_TYPE_LABELS } from '../../utils/fields.ts';
 
 type Props = { datasetId: string; table: DataTable };
 

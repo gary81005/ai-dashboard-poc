@@ -8,12 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev      # Vite dev server with HMR
 npm run build    # tsc -b (project references) then vite build
 npm run lint     # eslint .
+npm test         # vitest run — tests/ (pure utils + Excel parsing)
 npm run preview  # serve the production build from dist/
 npm run db:push  # apply supabase/migrations/ to the linked Supabase project
 npm run db:types # regenerate src/types/database.ts from the linked project's schema
 ```
 
-There is no test runner configured. `npm run build` and `npm run lint` are the only verification available — run both before claiming a change is done, since `tsc -b` catches things ESLint does not (the lint config is _not_ type-aware: it uses `tseslint.configs.recommended`, not `recommendedTypeChecked`).
+Run `npm run build`, `npm run lint` and `npm test` before claiming a change is done. `tsc -b` catches things ESLint does not (the lint config is _not_ type-aware: it uses `tseslint.configs.recommended`, not `recommendedTypeChecked`). Vitest (ADR 0010 §8) covers only pure logic — `src/utils/` and `services/parseWorkbook.ts` — in a Node environment; React components are not tested. Tests live in `tests/`; `tests/workbooks.ts` loads `public/samples/` plus the three simulated workbooks in `tests/fixtures/` (all simulated data, safe to commit).
 
 ## Product & design docs
 
@@ -53,7 +54,8 @@ These are enforced by config and will fail the build, not just warn:
 `tsconfig.json` is a solution file with two real projects:
 
 - `tsconfig.app.json` → `include: ["src"]`, DOM libs, `types: ["vite/client"]`
-- `tsconfig.node.json` → `include: ["vite.config.ts"]`, Node types, no DOM
+- `tsconfig.node.json` → `include: ["vite.config.ts", "vitest.config.ts"]`, Node types, no DOM
+- `tsconfig.test.json` → `include: ["tests"]`, Node types (tests read fixture files with `node:fs`); the `src` files they import are type-checked here too
 
 A new build-time/config file at the repo root (e.g. a Vitest or Tailwind config) must be added to `tsconfig.node.json`'s `include` or `tsc -b` will not see it.
 

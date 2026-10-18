@@ -5,6 +5,10 @@
 import type { DataType, Role } from '../types/index.ts';
 
 const PERIOD_PATTERN = /^\d{4}-\d{2}$/;
+
+// 時間標頭（ADR 0010）：序列會一直往後走（趨勢的 X 軸），週期每年重複（同期比較的 X 軸）。
+export const SEQUENCE_HEADERS = new Set(['年', '年月', '年度', '年份', '球季', '賽季']);
+export const CYCLE_HEADERS = new Set(['月', '季別']);
 const DIMENSION_HEADERS = new Set(['年', '月']);
 // 只比對結尾：若用「包含」比對，年營業額、月租金這類量值會被誤判成維度。
 const DIMENSION_SUFFIXES = ['月份', '排名', '代號', '編號'];

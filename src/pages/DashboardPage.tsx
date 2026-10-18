@@ -274,7 +274,7 @@ function EditWorkspace({
           )}
         </Stack>
         <Box sx={sidePanel}>
-          <FieldPanel dataset={dataset} selectedWidget={selectedWidget} />
+          <FieldPanel dataset={dataset} rows={rows} selectedWidget={selectedWidget} />
         </Box>
         <Box sx={sidePanel}>
           {selectedWidget ? (

@@ -2,7 +2,7 @@
 //
 // 比對規則見 docs/adr/0003：資料表先比 tbl_ 名稱再比工作表名稱；欄位先比中文標頭再比欄位代碼。
 
-import type { Agg, DataTable, Dataset, Field, FieldRef } from '../types/index.ts';
+import type { Agg, DataTable, DataType, Dataset, Field, FieldRef } from '../types/index.ts';
 
 export function findTable(dataset: Dataset, key: string): DataTable | undefined {
   return (
@@ -21,6 +21,15 @@ export function resolveField(table: DataTable, ref: FieldRef): Field | undefined
 export function toFieldRef(field: Field): FieldRef {
   return field.code ? { header: field.header, code: field.code } : { header: field.header };
 }
+
+// 資料型別的顯示文字，和「欄位定義」工作表的中文型別一致。
+export const DATA_TYPE_LABELS: Record<DataType, string> = {
+  text: '文字',
+  integer: '整數',
+  number: '數值',
+  percent: '百分比',
+  date: '日期',
+};
 
 export const AGG_LABELS: Record<Agg, string> = {
   sum: '加總',
