@@ -1,6 +1,7 @@
 // 資料集庫中的一張卡片：基本資訊、被跳過的工作表與原因、每張資料表的欄位、刪除。
 //
 // 預設收合，只顯示一行摘要；展開後才渲染跳過原因與欄位表格（unmountOnExit），資料集多時頁面不會太長。
+// 展開時才載入資料列，用來依種類分組並判斷每張表的「一列代表什麼」（DatasetTables）。
 // 刪除前會列出還在使用這個資料集的儀表板。
 
 import { useState } from 'react';
@@ -23,7 +24,7 @@ import { deleteDataset } from '../../services/datasetService.ts';
 import type { Dataset } from '../../types/index.ts';
 import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
-import { TableFieldsAccordion } from './TableFieldsAccordion.tsx';
+import { DatasetTables } from './DatasetTables.tsx';
 
 export function DatasetCard({ dataset }: { dataset: Dataset }) {
   const [confirming, setConfirming] = useState(false);
@@ -104,11 +105,7 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
                 </Alert>
               )}
 
-              <div>
-                {dataset.tables.map((table) => (
-                  <TableFieldsAccordion key={table.key} datasetId={dataset.id} table={table} />
-                ))}
-              </div>
+              <DatasetTables dataset={dataset} />
             </Stack>
           </Collapse>
         </Stack>

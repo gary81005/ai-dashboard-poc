@@ -27,9 +27,10 @@ import type { DataTable, Field, RatioOf, Role } from '../../types/index.ts';
 import { setTableHidden, updateField } from '../../services/datasetService.ts';
 import { DATA_TYPE_LABELS } from '../../utils/fields.ts';
 
-type Props = { datasetId: string; table: DataTable };
+// summary：「一列 = …・642 列」（ADR 0010 §3）；資料列還沒載入時只顯示列數。
+type Props = { datasetId: string; table: DataTable; summary?: string };
 
-export function TableFieldsAccordion({ datasetId, table }: Props) {
+export function TableFieldsAccordion({ datasetId, table, summary }: Props) {
   return (
     <Accordion disableGutters variant='outlined' sx={{ opacity: table.hidden ? 0.6 : 1 }}>
       <AccordionSummary>
@@ -43,7 +44,7 @@ export function TableFieldsAccordion({ datasetId, table }: Props) {
             {table.key !== table.sheetName ? table.key : ''}
           </Typography>
           <Typography variant='body2' color='text.secondary'>
-            {table.rowCount} 列・{table.fields.length} 個欄位
+            {summary ?? `${table.rowCount} 列`}・{table.fields.length} 個欄位
           </Typography>
         </Stack>
         <FormControlLabel

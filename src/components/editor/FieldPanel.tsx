@@ -1,11 +1,14 @@
 // 編輯模式的欄位清單：依資料表列出欄位，每個欄位都能用 react-dnd 拖到元件設定的槽位。
 //
+// 資料表依種類分組（明細／彙總／主檔／未分類，參數表預設收起來），每張表顯示「一列 = …」與列數
+// （ADR 0010 §3）。搜尋時參數表也會一起搜尋。
 // 欄位依 ADR 0010 的類別分組（時間／分類／識別／量值／比率），滑鼠移到欄位上會顯示提示卡：
 // 類別、型別、單位、算法、不同值的數量與樣本值。最上方的搜尋框可以跨資料表找欄位。
 // 選取中的 widget 已經綁定資料表時，其他資料表會變淡，提示無法拖入。
 
 import { useState } from 'react';
 import { useDrag } from 'react-dnd';
+import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -13,24 +16,28 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { FIELD_DND_TYPE } from '../../constants/dnd.ts';
-import type { DataTable, Dataset, DatasetRows, Widget } from '../../types/index.ts';
+import type { Dataset, DatasetRows, Widget } from '../../types/index.ts';
 import { DATA_TYPE_LABELS } from '../../utils/fields.ts';
-import {
-  GROUP_LABELS,
-  GROUP_ORDER,
-  LEVEL_LABELS,
-  groupOf,
-  profileTable,
-} from '../../utils/fieldKinds.ts';
+import { GROUP_LABELS, GROUP_ORDER, LEVEL_LABELS, groupOf } from '../../utils/fieldKinds.ts';
 import type { FieldProfile } from '../../utils/fieldKinds.ts';
 import { displayUnit, formatValue } from '../../utils/format.ts';
+import {
+  TABLE_KIND_LABELS,
+  describeTable,
+  grainText,
+  groupByKind,
+} from '../../utils/tableKinds.ts';
+import type { TableDescription } from '../../utils/tableKinds.ts';
 import { hasAnyField } from '../../utils/widgetEditing.ts';
 
 type Props = { dataset: Dataset; rows: DatasetRows; selectedWidget: Widget | undefined };
 
 export function FieldPanel({ dataset, rows, selectedWidget }: Props) {
   const [query, setQuery] = useState('');
-  const tables = dataset.tables.filter((t) => !t.hidden);
+  const [showParameters, setShowParameters] = useState(false);
+  const descriptions = dataset.tables
+    .filter((t) => !t.hidden)
+    .map((table) => describeTable(table, rows[table.key] ?? []));
   // 選取中的 widget 已有欄位時，只能使用它的資料表。
   const lockedTable =
     selectedWidget && hasAnyField(selectedWidget) ? selectedWidget.table : undefined;
@@ -40,12 +47,14 @@ export function FieldPanel({ dataset, rows, selectedWidget }: Props) {
     profile.field.header.toLowerCase().includes(needle) ||
     (profile.field.code?.toLowerCase().includes(needle) ?? false);
 
-  const sections = tables
-    .map((table) => ({
-      table,
-      profiles: profileTable(table, rows[table.key] ?? []).filter(matches),
+  const sections = descriptions
+    .map((description) => ({
+      description,
+      kind: description.kind,
+      profiles: description.profiles.filter(matches),
     }))
     .filter((s) => s.profiles.length > 0);
+  const groups = groupByKind(sections);
 
   return (
     <Paper variant='outlined' sx={{ p: 2 }}>
@@ -69,26 +78,59 @@ export function FieldPanel({ dataset, rows, selectedWidget }: Props) {
             找不到符合「{query}」的欄位
           </Typography>
         )}
-        {sections.map(({ table, profiles }) => (
-          <TableSection
-            key={table.key}
-            table={table}
-            profiles={profiles}
-            disabled={lockedTable !== undefined && lockedTable !== table.key}
-          />
-        ))}
+        {groups.map(({ kind, items }) => {
+          // 參數表預設收起來；搜尋時一律展開，才找得到參數表的欄位。
+          const collapsed = kind === 'parameter' && !showParameters && !needle;
+          return (
+            <Stack key={kind} spacing={1.5}>
+              <Typography
+                variant='overline'
+                color='text.secondary'
+                sx={{ lineHeight: 1.5, borderBottom: 1, borderColor: 'divider' }}
+              >
+                {TABLE_KIND_LABELS[kind]}表
+              </Typography>
+              {collapsed ? (
+                <Button
+                  size='small'
+                  sx={{ alignSelf: 'flex-start' }}
+                  onClick={() => setShowParameters(true)}
+                >
+                  顯示 {items.length} 張參數表
+                </Button>
+              ) : (
+                items.map(({ description, profiles }) => (
+                  <TableSection
+                    key={description.table.key}
+                    description={description}
+                    profiles={profiles}
+                    disabled={lockedTable !== undefined && lockedTable !== description.table.key}
+                  />
+                ))
+              )}
+            </Stack>
+          );
+        })}
       </Stack>
     </Paper>
   );
 }
 
-type TableSectionProps = { table: DataTable; profiles: FieldProfile[]; disabled: boolean };
+type TableSectionProps = {
+  description: TableDescription;
+  profiles: FieldProfile[];
+  disabled: boolean;
+};
 
-function TableSection({ table, profiles, disabled }: TableSectionProps) {
+function TableSection({ description, profiles, disabled }: TableSectionProps) {
+  const { table } = description;
   return (
     <section style={{ opacity: disabled ? 0.45 : 1 }}>
       <Typography variant='subtitle2' sx={{ fontWeight: 600 }}>
         {table.sheetName}
+      </Typography>
+      <Typography variant='caption' color='text.secondary' component='p'>
+        {grainText(description)}
       </Typography>
       {disabled && (
         <Typography variant='caption' color='text.secondary' component='p'>
