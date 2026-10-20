@@ -42,39 +42,52 @@ export function widgetTypeGuideText(type: WidgetType): string {
 // 槽位種類：dimension = 單一維度欄位、measure = 單一量值、measures = 多個量值、columns = 任意欄位（資料表格用）
 export type SlotKind = 'dimension' | 'measure' | 'measures' | 'columns';
 
-export type SlotDef = { key: string; label: string; kind: SlotKind; hint?: string };
+// required：必要槽位要放什麼欄位，用在「下一步」提示（ADR 0010 §5）；沒有就是選填。
+export type SlotDef = {
+  key: string;
+  label: string;
+  kind: SlotKind;
+  hint?: string;
+  required?: string;
+};
 
 const cartesian: SlotDef[] = [
-  { key: 'x', label: 'X 軸', kind: 'dimension' },
-  { key: 'y', label: 'Y 軸數值', kind: 'measures' },
+  { key: 'x', label: 'X 軸', kind: 'dimension', required: '時間或分類' },
+  { key: 'y', label: 'Y 軸數值', kind: 'measures', required: '數值' },
   { key: 'group', label: '分組（顏色）', kind: 'dimension', hint: '每個值各畫一個系列' },
 ];
 
 export const WIDGET_SLOTS: Record<WidgetType, SlotDef[]> = {
-  line: cartesian,
+  line: [{ ...cartesian[0], required: '時間' }, ...cartesian.slice(1)],
   bar: cartesian,
   combo: [
-    { key: 'x', label: 'X 軸', kind: 'dimension' },
-    { key: 'y', label: '數值', kind: 'measures', hint: '點欄位可切換長條／折線與左右軸' },
+    { key: 'x', label: 'X 軸', kind: 'dimension', required: '時間或分類' },
+    {
+      key: 'y',
+      label: '數值',
+      kind: 'measures',
+      hint: '點欄位可切換長條／折線與左右軸',
+      required: '數值',
+    },
   ],
   pie: [
-    { key: 'category', label: '分類', kind: 'dimension' },
-    { key: 'value', label: '數值', kind: 'measure' },
+    { key: 'category', label: '分類', kind: 'dimension', required: '分類' },
+    { key: 'value', label: '數值', kind: 'measure', required: '數值' },
   ],
   scatter: [
-    { key: 'x', label: 'X 軸數值', kind: 'measure' },
-    { key: 'y', label: 'Y 軸數值', kind: 'measure' },
+    { key: 'x', label: 'X 軸數值', kind: 'measure', required: '數值' },
+    { key: 'y', label: 'Y 軸數值', kind: 'measure', required: '數值' },
     { key: 'color', label: '顏色', kind: 'dimension' },
     { key: 'detail', label: '明細', kind: 'dimension', hint: '一個值一個點，例如門市代號' },
   ],
   radar: [
-    { key: 'x', label: '軸', kind: 'dimension', hint: '每個值是一個軸' },
-    { key: 'y', label: '數值', kind: 'measures' },
+    { key: 'x', label: '軸', kind: 'dimension', hint: '每個值是一個軸', required: '分類' },
+    { key: 'y', label: '數值', kind: 'measures', required: '數值' },
     { key: 'group', label: '分組（顏色）', kind: 'dimension' },
   ],
-  gauge: [{ key: 'value', label: '數值', kind: 'measure' }],
+  gauge: [{ key: 'value', label: '數值', kind: 'measure', required: '比率' }],
   kpi: [
-    { key: 'value', label: '數值', kind: 'measure' },
+    { key: 'value', label: '數值', kind: 'measure', required: '數值' },
     { key: 'trend', label: '趨勢', kind: 'dimension', hint: '放時間欄位以顯示走勢線' },
   ],
   table: [
@@ -83,6 +96,7 @@ export const WIDGET_SLOTS: Record<WidgetType, SlotDef[]> = {
       label: '欄位',
       kind: 'columns',
       hint: '全部不彙總時顯示明細；有彙總時依其他欄位分組',
+      required: '要列出的',
     },
   ],
   // 文字元件不綁資料表，沒有槽位。

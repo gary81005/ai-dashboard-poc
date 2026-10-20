@@ -117,6 +117,26 @@ export function profileTable(table: DataTable, rows: readonly Row[]): FieldProfi
   return table.fields.map((field) => classifyField(field, rows));
 }
 
+// 同一份資料列與資料表只分類一次：欄位清單、元件設定面板、每張卡片的警告都會用到，
+// 而元件每次修改（例如打標題的每個字）都會重新渲染。鍵是物件本身：資料列陣列來自
+// rowsStore，重新載入才會換；修改欄位角色時 store 會產生新的資料表物件，舊結果自然用不到。
+// WeakMap 不阻止回收，登出清空 rowsStore 後快取跟著消失，不需要另外清除。
+const profileCache = new WeakMap<readonly Row[], WeakMap<DataTable, readonly FieldProfile[]>>();
+
+export function profilesOf(table: DataTable, rows: readonly Row[]): readonly FieldProfile[] {
+  let byTable = profileCache.get(rows);
+  if (!byTable) {
+    byTable = new WeakMap();
+    profileCache.set(rows, byTable);
+  }
+  let profiles = byTable.get(table);
+  if (!profiles) {
+    profiles = profileTable(table, rows);
+    byTable.set(table, profiles);
+  }
+  return profiles;
+}
+
 // 欄位清單的分組（ADR 0010 §7 ①）：依角色分維度、量值，再依類別細分。
 // 量值角色的旗標仍放在「量值」組，因為拖曳時只能進數值槽位。
 export type FieldGroup = 'time' | 'category' | 'identifier' | 'measure' | 'ratio';

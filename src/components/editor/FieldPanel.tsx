@@ -5,9 +5,11 @@
 // 欄位依 ADR 0010 的類別分組（時間／分類／識別／量值／比率），滑鼠移到欄位上會顯示提示卡：
 // 類別、型別、單位、算法、不同值的數量與樣本值。最上方的搜尋框可以跨資料表找欄位。
 // 選取中的 widget 已經綁定資料表時，其他資料表會變淡，提示無法拖入。
+// 資料集有欄位健檢的建議時（ADR 0010 §7 ③），最上方提示並連到資料集頁、展開該資料集的卡片。
 
 import { useState } from 'react';
 import { useDrag } from 'react-dnd';
+import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
@@ -16,7 +18,9 @@ import TextField from '@mui/material/TextField';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
 import { FIELD_DND_TYPE } from '../../constants/dnd.ts';
+import { useUiStore } from '../../store/uiStore.ts';
 import type { Dataset, DatasetRows, Widget } from '../../types/index.ts';
+import { checkFields } from '../../utils/fieldHealth.ts';
 import { DATA_TYPE_LABELS } from '../../utils/fields.ts';
 import { GROUP_LABELS, GROUP_ORDER, LEVEL_LABELS, groupOf } from '../../utils/fieldKinds.ts';
 import type { FieldProfile } from '../../utils/fieldKinds.ts';
@@ -35,6 +39,9 @@ type Props = { dataset: Dataset; rows: DatasetRows; selectedWidget: Widget | und
 export function FieldPanel({ dataset, rows, selectedWidget }: Props) {
   const [query, setQuery] = useState('');
   const [showParameters, setShowParameters] = useState(false);
+  const navigate = useUiStore((s) => s.navigate);
+  const setExpandDatasetId = useUiStore((s) => s.setExpandDatasetId);
+  const suggestionCount = checkFields(dataset, rows).length;
   const descriptions = dataset.tables
     .filter((t) => !t.hidden)
     .map((table) => describeTable(table, rows[table.key] ?? []));
@@ -64,6 +71,26 @@ export function FieldPanel({ dataset, rows, selectedWidget }: Props) {
       <Typography variant='caption' color='text.secondary' component='p' sx={{ mb: 1 }}>
         把欄位拖到右側元件設定的槽位上；滑鼠移到欄位上可以看說明
       </Typography>
+      {suggestionCount > 0 && (
+        <Alert
+          severity='info'
+          sx={{ mb: 1.5 }}
+          action={
+            <Button
+              color='inherit'
+              size='small'
+              onClick={() => {
+                setExpandDatasetId(dataset.id);
+                navigate('datasets');
+              }}
+            >
+              去處理
+            </Button>
+          }
+        >
+          這個資料集有 {suggestionCount} 項欄位建議：有些欄位的角色或比率標記可能不對
+        </Alert>
+      )}
       <TextField
         size='small'
         fullWidth

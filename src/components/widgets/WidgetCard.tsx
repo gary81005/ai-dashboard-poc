@@ -2,7 +2,8 @@
 //
 // 也負責處理「還沒設定欄位」和「資料表不在資料集中」兩種狀況。
 // 查詢用的篩選 = widget 自己的篩選 + 儀表板篩選裡這張資料表有對應欄位的部分（ADR 0008）。
-// 編輯模式下標題是 react-grid-layout 的拖曳把手（.widget-drag-handle），點擊卡片會選取這個元件。
+// 編輯模式下標題是 react-grid-layout 的拖曳把手（.widget-drag-handle），點擊卡片會選取這個元件；
+// 有警告時標題旁加 ⚠（ADR 0010 §7 ⑤，內容與「改用建議」在元件設定面板）。
 
 import Button from '@mui/material/Button';
 import Paper from '@mui/material/Paper';
@@ -10,8 +11,10 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import type { DashboardFilter, Dataset, DatasetRows, Widget } from '../../types/index.ts';
 import { filtersForTable } from '../../utils/dashboardFilters.ts';
+import { profilesOf } from '../../utils/fieldKinds.ts';
 import type { SelectedValues } from '../../utils/dashboardFilters.ts';
 import { findTable } from '../../utils/fields.ts';
+import { checkWidget } from '../../utils/widgetChecks.ts';
 import { activeFilters, hasAnyField } from '../../utils/widgetEditing.ts';
 import { WidgetBody } from './WidgetBody.tsx';
 import { WidgetFilterControl } from './WidgetFilterControl.tsx';
@@ -52,6 +55,13 @@ export function WidgetCard({
   const { applied, skipped } = table
     ? filtersForTable(table, dashboardFilters, filterValues)
     : { applied: [], skipped: [] };
+  // 只在編輯模式檢查；檢視模式不顯示警告。
+  const problems =
+    editing && table && tableRows
+      ? checkWidget(widget, table, tableRows, profilesOf(table, tableRows)).warnings.filter(
+          (w) => w.level === 'warning',
+        )
+      : [];
 
   let body;
   if (widget.type === 'text') {
@@ -104,6 +114,15 @@ export function WidgetCard({
         >
           {widget.title || '未命名'}
         </Typography>
+        {problems.length > 0 && (
+          <Typography
+            color='warning'
+            title={problems.map((w) => w.message).join('\n')}
+            aria-label={`${problems.length} 個警告`}
+          >
+            ⚠
+          </Typography>
+        )}
         {table && tableRows && hasAnyField(widget) && onChange && (
           <WidgetFilterControl widget={widget} table={table} rows={tableRows} onChange={onChange} />
         )}

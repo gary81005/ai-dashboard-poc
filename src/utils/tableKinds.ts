@@ -5,7 +5,7 @@
 // 前綴規則照樣有效，只是推測規則與 grain 會判斷不出來。
 
 import type { DataTable, Field, Row } from '../types/index.ts';
-import { profileTable } from './fieldKinds.ts';
+import { profilesOf } from './fieldKinds.ts';
 import type { FieldProfile } from './fieldKinds.ts';
 import { categoryKey } from './query.ts';
 
@@ -116,7 +116,7 @@ export function grainOf(rows: readonly Row[], profiles: readonly FieldProfile[])
 
 export type TableDescription = {
   table: DataTable;
-  profiles: FieldProfile[];
+  profiles: readonly FieldProfile[];
   kind: TableKind;
   // 資料列還沒載入或找不到時是 null。
   grain: Field[] | null;
@@ -124,7 +124,7 @@ export type TableDescription = {
 
 // 欄位清單與資料集頁共用：一張表的欄位分類、種類與 grain。
 export function describeTable(table: DataTable, rows: readonly Row[]): TableDescription {
-  const profiles = profileTable(table, rows);
+  const profiles = profilesOf(table, rows);
   return {
     table,
     profiles,

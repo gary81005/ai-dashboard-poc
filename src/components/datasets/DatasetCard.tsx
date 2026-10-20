@@ -2,7 +2,7 @@
 //
 // 預設收合，只顯示一行摘要；展開後才渲染跳過原因與欄位表格（unmountOnExit），資料集多時頁面不會太長。
 // 展開時才載入資料列，用來做欄位健檢、依種類分組並判斷每張表的「一列代表什麼」（DatasetTables）。
-// 資料列已在快取中時，摘要列顯示健檢建議的數量；剛上傳的資料集自動展開。
+// 資料列已在快取中時，摘要列顯示健檢建議的數量；剛上傳的資料集、或從欄位清單的提示過來時自動展開。
 // 刪除前會列出還在使用這個資料集的儀表板。
 
 import { useState } from 'react';
@@ -34,12 +34,12 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
   const [expanded, setExpanded] = useState(false);
   const dashboards = useAppStore((s) => s.dashboards);
   const notify = useUiStore((s) => s.notify);
-  const justImported = useUiStore((s) => s.importedDatasetId === dataset.id);
-  const setImportedDatasetId = useUiStore((s) => s.setImportedDatasetId);
+  const requested = useUiStore((s) => s.expandDatasetId === dataset.id);
+  const setExpandDatasetId = useUiStore((s) => s.setExpandDatasetId);
   // 只讀快取、不觸發載入：收合的卡片不必為了數量去讀整份資料列。
   const rows = useRowsStore((s) => s.byDataset[dataset.id]);
   const suggestionCount = rows?.status === 'ready' ? checkFields(dataset, rows.rows).length : 0;
-  const open = expanded || justImported;
+  const open = expanded || requested;
   const usedBy = dashboards.filter((d) => d.datasetId === dataset.id);
   const visibleCount = dataset.tables.filter((t) => !t.hidden).length;
   const skippedCount = dataset.skippedSheets?.length ?? 0;
@@ -65,7 +65,7 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
             useFlexGap
             onClick={() => {
               setExpanded(!open);
-              if (open && justImported) setImportedDatasetId(null);
+              if (open && requested) setExpandDatasetId(null);
             }}
             sx={{ alignItems: 'flex-start', cursor: 'pointer', flexWrap: 'wrap', gap: 2 }}
           >

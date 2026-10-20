@@ -5,6 +5,7 @@ import {
   isInferredRatio,
   levelOf,
   profileTable,
+  profilesOf,
 } from '../src/utils/fieldKinds.ts';
 import type { FieldKind } from '../src/utils/fieldKinds.ts';
 import type { Field, Row } from '../src/types/index.ts';
@@ -245,5 +246,25 @@ describe('groupOf', () => {
     expect(groups['聯盟']).toBe('category');
     expect(groups['上壘率']).toBe('ratio');
     expect(groups['全壘打']).toBe('measure');
+  });
+});
+
+describe('profilesOf', () => {
+  it('同一份資料列與資料表只分類一次', async () => {
+    const { table, rows } = await loadTable('mlb', 'tbl_fact_batting');
+    const first = profilesOf(table, rows);
+    expect(profilesOf(table, rows)).toBe(first);
+    expect(first).toEqual(profileTable(table, rows));
+  });
+
+  it('資料表物件換新（例如改了欄位角色）時重新分類', async () => {
+    const { table, rows } = await loadTable('mlb', 'tbl_fact_batting');
+    const before = profilesOf(table, rows);
+    const fields = table.fields.map((f) =>
+      f.header === '是否合格打者' ? { ...f, role: 'dimension' as const } : f,
+    );
+    const after = profilesOf({ ...table, fields }, rows);
+    expect(after).not.toBe(before);
+    expect(after.find((p) => p.field.header === '是否合格打者')?.field.role).toBe('dimension');
   });
 });

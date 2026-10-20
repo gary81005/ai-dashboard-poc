@@ -33,7 +33,7 @@ export function WorkbookActions({ showSample = true, stayOnPage = false }: Props
   const [percent, setPercent] = useState<number | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
   const navigate = useUiStore((s) => s.navigate);
-  const setImportedDatasetId = useUiStore((s) => s.setImportedDatasetId);
+  const setExpandDatasetId = useUiStore((s) => s.setExpandDatasetId);
 
   const handleProgress = (done: number, total: number) =>
     setPercent(total === 0 ? 100 : Math.round((done / total) * 100));
@@ -52,7 +52,7 @@ export function WorkbookActions({ showSample = true, stayOnPage = false }: Props
         undefined,
         handleProgress,
       );
-      setImportedDatasetId(dataset.id);
+      setExpandDatasetId(dataset.id);
       const skipped = dataset.skippedSheets?.length ?? 0;
       setNotice(
         skipped > 0
