@@ -229,7 +229,7 @@ function formulaText(profile: FieldProfile): string | undefined {
   if (kind.kind === 'ratio' && kind.ratio === 'inferred') {
     return '標頭看起來像比率，預設用平均；可到資料集頁正式標記';
   }
-  if (kind.kind === 'category' && kind.flag && field.role === 'measure') {
+  if (kind.kind === 'category' && kind.flag) {
     return '放進數值槽位時加總，代表符合的筆數';
   }
   return undefined;

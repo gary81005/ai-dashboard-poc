@@ -57,10 +57,15 @@ export function isInferredRatio(header: string): boolean {
   return INFERRED_RATIO_SUFFIX.test(header) || header.includes('平均') || header.includes('每');
 }
 
-// 0/1 旗標：整數、值只有 0 和 1，而且標頭以「是否／有無」開頭或單位是「1=是」。
-function isFlag(field: Field, values: readonly unknown[]): boolean {
-  if (field.dataType !== 'integer') return false;
-  if (!FLAG_PREFIX.test(field.header) && field.unit !== '1=是') return false;
+// 只看中繼資料的旗標判斷：整數，而且標頭以「是否／有無」開頭或單位是「1=是」。
+// 沒有資料列可看時（例如拖曳欄位決定預設彙總）用這條。
+export function looksLikeFlag(field: Field): boolean {
+  return field.dataType === 'integer' && (FLAG_PREFIX.test(field.header) || field.unit === '1=是');
+}
+
+// 0/1 旗標：looksLikeFlag，而且值只有 0 和 1。
+export function isFlag(field: Field, values: readonly unknown[]): boolean {
+  if (!looksLikeFlag(field)) return false;
   return values.length > 0 && values.every((v) => v === 0 || v === 1);
 }
 

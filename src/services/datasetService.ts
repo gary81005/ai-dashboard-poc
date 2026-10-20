@@ -167,6 +167,16 @@ export function updateField(
   persist(datasetId);
 }
 
+// 一次修改多個欄位（欄位健檢的「全部套用」），只寫回資料庫一次。
+export function updateFields(
+  datasetId: string,
+  changes: ReadonlyArray<{ tableKey: string; header: string; patch: FieldPatch }>,
+): void {
+  const { updateField: apply } = useAppStore.getState();
+  for (const { tableKey, header, patch } of changes) apply(datasetId, tableKey, header, patch);
+  persist(datasetId);
+}
+
 // 整份替換（切換資料來源時沿用欄位角色，見 RebindDialog）。
 export function saveDataset(dataset: Dataset): void {
   useAppStore.getState().replaceDataset(dataset);

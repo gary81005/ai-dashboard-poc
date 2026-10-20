@@ -37,7 +37,8 @@ const expected: Array<
       tbl_fact_monthly: { kind: 'fact', grain: ['門市名稱', '年月'] },
       tbl_fact_channel: { kind: 'fact', grain: ['門市名稱', '年月', '通路名稱'] },
       tbl_fact_item: { kind: 'fact', grain: ['品項名稱', '門市代號', '年月'] },
-      tbl_store_year_config: { kind: 'fact', grain: null },
+      // 「年度」依 0010 修訂的規則 3 是維度。
+      tbl_store_year_config: { kind: 'fact', grain: ['門市名稱', '年度'] },
       tbl_agg_month: { kind: 'aggregate', grain: ['年月'] },
       tbl_kpi: { kind: 'fact' },
     },
@@ -45,12 +46,14 @@ const expected: Array<
   [
     'mlb',
     {
-      tbl_season_params: { kind: 'parameter' },
+      // 「球季」依 0010 修訂的規則 3 是維度，所以球員、球隊的表都找得到 grain。
+      tbl_season_params: { kind: 'parameter', grain: ['球季'] },
       tbl_dim_team: { kind: 'dimension', grain: ['球隊英文名'] },
-      tbl_agg_team_season: { kind: 'aggregate' },
+      tbl_agg_team_season: { kind: 'aggregate', grain: ['球隊代號', '球季'] },
       tbl_dim_player: { kind: 'dimension', grain: ['球員姓名'] },
-      tbl_standings: { kind: 'fact' },
-      tbl_fact_batting: { kind: 'fact' },
+      tbl_standings: { kind: 'fact', grain: ['球隊代號', '球季'] },
+      tbl_fact_batting: { kind: 'fact', grain: ['球員姓名', '球季'] },
+      tbl_fact_pitching: { kind: 'fact', grain: ['球員姓名', '球季'] },
     },
   ],
   [

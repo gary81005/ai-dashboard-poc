@@ -1,7 +1,8 @@
-// 資料集卡片展開後的資料表清單：依種類分組（明細／彙總／主檔／未分類，參數表預設收起來），
-// 每張表顯示「一列 = …」（ADR 0010 §3）。隱藏的資料表放在最後一組。
+// 資料集卡片展開後的內容：最上方是欄位健檢（ADR 0010 §7 ③），接著是資料表清單，
+// 依種類分組（明細／彙總／主檔／未分類，參數表預設收起來），每張表顯示「一列 = …」（ADR 0010 §3）。
+// 隱藏的資料表放在最後一組。
 //
-// 判斷種類與 grain 需要資料列，所以展開卡片時才載入（和開啟儀表板共用 rowsStore 的快取）；
+// 健檢、種類與 grain 都需要資料列，所以展開卡片時才載入（和開啟儀表板共用 rowsStore 的快取）；
 // 載入前只套用表格名稱前綴的規則。
 
 import { useState } from 'react';
@@ -10,12 +11,14 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useDatasetRows } from '../../hooks/useDatasetRows.ts';
 import type { Dataset, DatasetRows } from '../../types/index.ts';
+import { checkFields } from '../../utils/fieldHealth.ts';
 import {
   TABLE_KIND_LABELS,
   describeTable,
   grainText,
   groupByKind,
 } from '../../utils/tableKinds.ts';
+import { FieldHealth } from './FieldHealth.tsx';
 import { TableFieldsAccordion } from './TableFieldsAccordion.tsx';
 
 const NO_ROWS: DatasetRows = {};
@@ -33,13 +36,16 @@ export function DatasetTables({ dataset }: { dataset: Dataset }) {
     <Stack spacing={2}>
       {entry.status === 'loading' && (
         <Typography variant='caption' color='text.secondary'>
-          讀取資料列中，完成後會顯示每張表的「一列代表什麼」…
+          讀取資料列中，完成後會顯示欄位健檢與每張表的「一列代表什麼」…
         </Typography>
       )}
       {entry.status === 'error' && (
         <Typography variant='caption' color='error'>
-          讀取資料列失敗，無法判斷每張表的「一列代表什麼」：{entry.message}
+          讀取資料列失敗，無法做欄位健檢與判斷每張表的「一列代表什麼」：{entry.message}
         </Typography>
+      )}
+      {entry.status === 'ready' && (
+        <FieldHealth datasetId={dataset.id} suggestions={checkFields(dataset, entry.rows)} />
       )}
       {groupByKind(descriptions).map(({ kind, items }) => (
         <Stack key={kind} spacing={1}>

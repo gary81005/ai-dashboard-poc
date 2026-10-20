@@ -21,6 +21,8 @@ type UiState = {
   selectedWidgetId: string | null;
   filterValues: FilterValues | null;
   notice: Notice | null;
+  // 剛上傳的資料集：資料集頁自動展開它的卡片，讓使用者先看到欄位健檢（ADR 0010 §7 ③）。
+  importedDatasetId: string | null;
   // 有未儲存的變更時，被擋下來的離開動作；App 的 UnsavedChangesDialog 決定儲存、捨棄或取消。
   pendingLeave: (() => void) | null;
   navigate: (view: View) => void;
@@ -31,6 +33,7 @@ type UiState = {
   setFilterValue: (dashboardId: string, header: string, values: string[]) => void;
   clearFilterValues: () => void;
   notify: (notice: Notice | null) => void;
+  setImportedDatasetId: (datasetId: string | null) => void;
 };
 
 export const useUiStore = create<UiState>()((set, get) => ({
@@ -39,6 +42,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   selectedWidgetId: null,
   filterValues: null,
   notice: null,
+  importedDatasetId: null,
   pendingLeave: null,
   // 換頁時一律離開編輯模式、取消選取並清空儀表板篩選，避免帶著舊的狀態進到別的儀表板。
   navigate: (view) =>
@@ -61,4 +65,5 @@ export const useUiStore = create<UiState>()((set, get) => ({
     }),
   clearFilterValues: () => set({ filterValues: null }),
   notify: (notice) => set({ notice }),
+  setImportedDatasetId: (importedDatasetId) => set({ importedDatasetId }),
 }));

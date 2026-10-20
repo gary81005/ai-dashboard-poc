@@ -9,7 +9,8 @@ const PERIOD_PATTERN = /^\d{4}-\d{2}$/;
 // 時間標頭（ADR 0010）：序列會一直往後走（趨勢的 X 軸），週期每年重複（同期比較的 X 軸）。
 export const SEQUENCE_HEADERS = new Set(['年', '年月', '年度', '年份', '球季', '賽季']);
 export const CYCLE_HEADERS = new Set(['月', '季別']);
-const DIMENSION_HEADERS = new Set(['年', '月']);
+// 規則 3：標頭完全等於任一個時間標頭就是維度（ADR 0010 修訂 0004，原本只有「年」「月」）。
+const DIMENSION_HEADERS = new Set([...SEQUENCE_HEADERS, ...CYCLE_HEADERS]);
 // 只比對結尾：若用「包含」比對，年營業額、月租金這類量值會被誤判成維度。
 const DIMENSION_SUFFIXES = ['月份', '排名', '代號', '編號'];
 
@@ -27,7 +28,8 @@ export function isPeriodValue(value: unknown): boolean {
 }
 
 // 依序套用規則，第一條符合的就採用：文字／日期 → 維度；值全是 YYYY-MM → 維度；
-// 標頭為「年」「月」或以 月份／排名／代號／編號 結尾 → 維度；其餘數值 → 量值。
+// 標頭完全等於時間標頭（年、月、年月、年度、年份、季別、球季、賽季）或以 月份／排名／代號／編號 結尾
+// → 維度；其餘數值 → 量值。
 export function inferRole(header: string, dataType: DataType, values: readonly unknown[]): Role {
   if (dataType === 'text' || dataType === 'date') return 'dimension';
   const present = values.filter((v) => v !== null && v !== undefined && v !== '');

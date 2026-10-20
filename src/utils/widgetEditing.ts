@@ -14,6 +14,7 @@ import type {
   Widget,
   WidgetType,
 } from '../types/index.ts';
+import { isInferredRatio, looksLikeFlag } from './fieldKinds.ts';
 import { toFieldRef } from './fields.ts';
 import { createId } from './ids.ts';
 
@@ -67,10 +68,12 @@ export function writeSlot(widget: Widget, slot: SlotDef, entries: readonly SlotE
   return { ...widget, encoding } as Widget;
 }
 
-// 預設彙總方式（ADR 0004）：一般量值加總、比率取平均、把維度放進數值槽位就計數。
+// 預設彙總方式（ADR 0004、0010）：一般量值加總、比率與推測比率取平均、把維度放進數值槽位就計數。
+// 0/1 旗標不論角色都加總，代表「符合的筆數」。
 export function defaultAgg(field: Field): Agg {
+  if (looksLikeFlag(field)) return 'sum';
   if (field.role === 'dimension') return 'count';
-  return field.ratio ? 'avg' : 'sum';
+  return field.ratio || isInferredRatio(field.header) ? 'avg' : 'sum';
 }
 
 // 維度槽位只接受維度；數值與表格欄位槽位接受任何欄位（維度會以計數彙總）。

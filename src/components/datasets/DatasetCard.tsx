@@ -1,7 +1,8 @@
 // 資料集庫中的一張卡片：基本資訊、被跳過的工作表與原因、每張資料表的欄位、刪除。
 //
 // 預設收合，只顯示一行摘要；展開後才渲染跳過原因與欄位表格（unmountOnExit），資料集多時頁面不會太長。
-// 展開時才載入資料列，用來依種類分組並判斷每張表的「一列代表什麼」（DatasetTables）。
+// 展開時才載入資料列，用來做欄位健檢、依種類分組並判斷每張表的「一列代表什麼」（DatasetTables）。
+// 資料列已在快取中時，摘要列顯示健檢建議的數量；剛上傳的資料集自動展開。
 // 刪除前會列出還在使用這個資料集的儀表板。
 
 import { useState } from 'react';
@@ -23,7 +24,9 @@ import Typography from '@mui/material/Typography';
 import { deleteDataset } from '../../services/datasetService.ts';
 import type { Dataset } from '../../types/index.ts';
 import { useAppStore } from '../../store/appStore.ts';
+import { useRowsStore } from '../../store/rowsStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
+import { checkFields } from '../../utils/fieldHealth.ts';
 import { DatasetTables } from './DatasetTables.tsx';
 
 export function DatasetCard({ dataset }: { dataset: Dataset }) {
@@ -31,6 +34,12 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
   const [expanded, setExpanded] = useState(false);
   const dashboards = useAppStore((s) => s.dashboards);
   const notify = useUiStore((s) => s.notify);
+  const justImported = useUiStore((s) => s.importedDatasetId === dataset.id);
+  const setImportedDatasetId = useUiStore((s) => s.setImportedDatasetId);
+  // 只讀快取、不觸發載入：收合的卡片不必為了數量去讀整份資料列。
+  const rows = useRowsStore((s) => s.byDataset[dataset.id]);
+  const suggestionCount = rows?.status === 'ready' ? checkFields(dataset, rows.rows).length : 0;
+  const open = expanded || justImported;
   const usedBy = dashboards.filter((d) => d.datasetId === dataset.id);
   const visibleCount = dataset.tables.filter((t) => !t.hidden).length;
   const skippedCount = dataset.skippedSheets?.length ?? 0;
@@ -54,7 +63,10 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
           <Stack
             direction='row'
             useFlexGap
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => {
+              setExpanded(!open);
+              if (open && justImported) setImportedDatasetId(null);
+            }}
             sx={{ alignItems: 'flex-start', cursor: 'pointer', flexWrap: 'wrap', gap: 2 }}
           >
             {/* flex-basis 讓手機上按鈕換到下一行，而不是把名稱擠成一字一行。 */}
@@ -70,6 +82,14 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
                 {usedBy.length > 0 && (
                   <Chip size='small' variant='outlined' label={`${usedBy.length} 個儀表板使用中`} />
                 )}
+                {suggestionCount > 0 && (
+                  <Chip
+                    size='small'
+                    variant='outlined'
+                    color='info'
+                    label={`${suggestionCount} 項欄位建議`}
+                  />
+                )}
                 {skippedCount > 0 && (
                   <Chip
                     size='small'
@@ -80,7 +100,7 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
                 )}
               </Stack>
             </Stack>
-            <Button aria-expanded={expanded}>{expanded ? '收合 ▴' : '展開 ▾'}</Button>
+            <Button aria-expanded={open}>{open ? '收合 ▴' : '展開 ▾'}</Button>
             <Button
               color='error'
               onClick={(e) => {
@@ -92,7 +112,7 @@ export function DatasetCard({ dataset }: { dataset: Dataset }) {
             </Button>
           </Stack>
 
-          <Collapse in={expanded} unmountOnExit>
+          <Collapse in={open} unmountOnExit>
             <Stack spacing={2}>
               {dataset.skippedSheets && dataset.skippedSheets.length > 0 && (
                 <Alert severity='warning'>
