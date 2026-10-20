@@ -1,12 +1,16 @@
-// 離開輸入框時才寫回的文字欄位：打字只改本地的草稿，失焦時才呼叫 onCommit。
+// 不會每個字都寫回的文字欄位：打字只改本地的草稿，停止輸入一下（COMMIT_DELAY）、離開輸入框、
+// 單行欄位按 Enter，或元件被卸載時，才呼叫 onCommit。按 Esc 還原成目前的值。
 //
 // 元件設定的每次修改都會更新 store、讓整個儀表板頁重新渲染；標題、說明這類自由輸入若每個字都寫回，
-// 打字會卡。單行欄位按 Enter 也會寫回，按 Esc 還原成目前的值。
-// 點「關閉」「儲存」或其他卡片時，瀏覽器會先讓輸入框失焦，所以草稿會在那些動作之前寫回。
+// 打字會卡。停頓後自動寫回，未儲存提醒（含重新整理分頁時的 beforeunload）才會即時生效；
+// 卸載時寫回，是因為縮窄視窗等情況卸載元件時不會觸發 onBlur。
+// 輸入法組字中（注音、拼音選字）的 Enter 與 Esc 屬於輸入法，不處理。
 
-import { useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import TextField from '@mui/material/TextField';
 import type { TextFieldProps } from '@mui/material/TextField';
+
+const COMMIT_DELAY = 400;
 
 type Props = Omit<TextFieldProps, 'value' | 'defaultValue' | 'onChange' | 'onBlur'> & {
   value: string;
@@ -22,6 +26,17 @@ export function CommitTextField({ value, onCommit, onKeyDown, ...props }: Props)
     setDraft(value);
   }
 
+  // 用最新的 draft、value 與 onCommit：計時器與卸載時呼叫，不能拿到舊的 widget。
+  const commit = useEffectEvent(() => {
+    if (draft !== value) onCommit(draft);
+  });
+  useEffect(() => {
+    if (draft === value) return;
+    const timer = setTimeout(commit, COMMIT_DELAY);
+    return () => clearTimeout(timer);
+  }, [draft, value]);
+  useEffect(() => () => commit(), []);
+
   return (
     <TextField
       {...props}
@@ -32,6 +47,7 @@ export function CommitTextField({ value, onCommit, onKeyDown, ...props }: Props)
       }}
       onKeyDown={(e) => {
         onKeyDown?.(e);
+        if (e.nativeEvent.isComposing) return;
         if (e.key === 'Escape') setDraft(value);
         else if (e.key === 'Enter' && !props.multiline) (e.target as HTMLElement).blur();
       }}

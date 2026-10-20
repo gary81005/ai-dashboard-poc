@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { DataTable, Row, Widget } from '../src/types/index.ts';
 import { profileTable } from '../src/utils/fieldKinds.ts';
 import { recommend } from '../src/utils/recommend.ts';
-import { loadTable } from './workbooks.ts';
+import { checkWidget } from '../src/utils/widgetChecks.ts';
+import { loadTable, loadWorkbook } from './workbooks.ts';
 import type { WorkbookName } from './workbooks.ts';
 
 async function run(workbook: WorkbookName, key: string, selected: string[]) {
@@ -96,9 +97,13 @@ describe('組合對照表', () => {
   });
 
   it('2. 序列時間 ＋ 同單位量值：折線、長條', async () => {
-    const result = await monthly(['年月', '營業額', '總成本']);
+    const result = await monthly(['年', '營業額', '總成本']);
     expect(types(result)).toEqual(['line', 'bar', 'table']);
     expect(first(result).title).toBe('營業額、總成本趨勢');
+  });
+
+  it('2. 超過 30 個時間點時不推薦長條（時間軸不能排序取前 N）', async () => {
+    expect(types(await monthly(['年月', '營業額', '總成本']))).toEqual(['line', 'table']);
   });
 
   it('3. 序列時間 ＋ M ＋ R：組合圖，M 長條左軸、R 折線右軸', async () => {
@@ -120,11 +125,17 @@ describe('組合對照表', () => {
   });
 
   it('4. 序列時間 ＋「少」級分類 ＋ M：依分類分線、堆疊長條', async () => {
-    const result = await monthly(['年月', '區域', '營業額']);
+    const result = await monthly(['年', '區域', '營業額']);
     expect(types(result)).toEqual(['line', 'bar', 'table']);
     expect(encoding(first(result), 'line').group).toMatchObject({ field: { header: '區域' } });
     const bar = result.recommendations[1].widget;
     expect(bar.type === 'bar' && bar.options?.stacked).toBe(true);
+  });
+
+  it('4. 時間點少於 3 個時不畫折線', async () => {
+    expect(types(await run('sample', 'tbl_fact_monthly', ['年', '區域', '營業額']))).toEqual([
+      'table',
+    ]);
   });
 
   it('4. 比率不推薦堆疊', async () => {
@@ -228,8 +239,55 @@ describe('組合對照表', () => {
     ]);
   });
 
+  it('12. 少於 5 個點時不推薦散佈圖', () => {
+    const table: DataTable = {
+      key: 't',
+      sheetName: 't',
+      hidden: false,
+      rowCount: 3,
+      fields: [
+        { header: '營業額', dataType: 'number', role: 'measure' },
+        { header: '來客數', dataType: 'number', role: 'measure' },
+      ],
+    };
+    const rows: Row[] = [1, 2, 3].map((n) => ({ 營業額: n, 來客數: n }));
+    const result = recommend(table, rows, profileTable(table, rows), ['營業額', '來客數']);
+    expect(result.recommendations.map((r) => r.widget.type)).toEqual(['table']);
+  });
+
   it('13. 其他組合只給表格', async () => {
     expect(types(await monthly(['門市名稱', '年月', '營業額']))).toEqual(['table']);
     expect(types(await monthly(['區域']))).toEqual(['table']);
+  });
+});
+
+// 推薦與警告共用同一套條件：任何推薦出來的候選，建立後都不該立刻觸發正式警告。
+// 掃描四份活頁簿每張表前 14 個欄位的所有 1～3 個欄位組合。
+describe('推薦與警告一致', () => {
+  it.each(['restaurant', 'mlb', 'performance', 'sample'] as const)('%s', async (name) => {
+    const parsed = await loadWorkbook(name);
+    const violations: string[] = [];
+    for (const table of parsed.tables.filter((t) => !t.hidden)) {
+      const rows = parsed.rows[table.key];
+      const profiles = profileTable(table, rows);
+      const headers = table.fields.slice(0, 14).map((f) => f.header);
+      const combos: string[][] = [];
+      headers.forEach((a, i) => {
+        combos.push([a]);
+        headers.slice(i + 1).forEach((b, j) => {
+          combos.push([a, b]);
+          headers.slice(i + j + 2).forEach((c) => combos.push([a, b, c]));
+        });
+      });
+      for (const combo of combos) {
+        for (const { widget } of recommend(table, rows, profiles, combo).recommendations) {
+          const warnings = checkWidget(widget, table, rows, profiles).warnings;
+          for (const w of warnings.filter((x) => x.level === 'warning')) {
+            violations.push(`${table.key} [${combo.join('、')}] ${widget.type}：${w.message}`);
+          }
+        }
+      }
+    }
+    expect(violations).toEqual([]);
   });
 });

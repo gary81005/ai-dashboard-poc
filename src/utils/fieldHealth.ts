@@ -10,8 +10,8 @@
 // 隱藏的資料表不檢查。
 
 import type { Dataset, DatasetRows, Field, Role } from '../types/index.ts';
-import { isFlag, isInferredRatio } from './fieldKinds.ts';
-import { CYCLE_HEADERS, SEQUENCE_HEADERS, inferRole } from './inference.ts';
+import { isFlag } from './fieldKinds.ts';
+import { CYCLE_HEADERS, SEQUENCE_HEADERS, inferRole, isInferredRatio } from './inference.ts';
 
 export type HealthKind = 'role' | 'flag' | 'ratio';
 

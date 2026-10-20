@@ -39,6 +39,14 @@ export function inferRole(header: string, dataType: DataType, values: readonly u
   return 'measure';
 }
 
+const INFERRED_RATIO_SUFFIX = /(率|比|指數|均)$/;
+
+// 推測比率（ADR 0010 §2）：沒被標成比率，但標頭像比率，例如 上壘率、防禦率、整體攻擊指數、
+// 每九局三振。只影響推薦、預設彙總與合計，不改欄位的中繼資料。
+export function isInferredRatio(header: string): boolean {
+  return INFERRED_RATIO_SUFFIX.test(header) || header.includes('平均') || header.includes('每');
+}
+
 // 型別是百分比、或 Excel 格式含 %，就視為比率（不可加總）。
 // 平均客單價這類「數值」型別的比率無法自動判斷，只能靠使用者手動標記。
 export function inferRatio(dataType: DataType, numFmt: string | undefined): boolean {

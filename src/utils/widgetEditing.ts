@@ -14,9 +14,10 @@ import type {
   Widget,
   WidgetType,
 } from '../types/index.ts';
-import { isInferredRatio, looksLikeFlag } from './fieldKinds.ts';
+import { looksLikeFlag } from './fieldKinds.ts';
 import { toFieldRef } from './fields.ts';
 import { createId } from './ids.ts';
+import { isInferredRatio } from './inference.ts';
 
 // 槽位裡的一個項目，統一各種槽位的形狀：維度只有 field，量值多了 agg，組合圖再多 mark／axis。
 export type SlotEntry = {

@@ -46,6 +46,8 @@ const MAX_FIELDS = 5;
 const TOP_N = 10;
 const MANY_VALUES = 30;
 const SCATTER_MIN_POINTS = 5;
+// 折線至少要有的時間點；與 utils/widgetChecks.ts 的警告條件一致。
+const TREND_MIN_POINTS = 3;
 const SCATTER_MAX_ROWS = 2000;
 
 function codeOf(profile: FieldProfile): Pick {
@@ -195,10 +197,16 @@ function chartCandidates(builder: Builder, picks: Pick[]): Candidate[] {
     return out;
   }
 
-  // 12. 2 個量值、沒有維度：每列一點的散佈圖。
+  // 12. 2 個量值、沒有維度：每列一點的散佈圖（至少 5 個點）。
   if (dims.length === 0 && measures.length === 2) {
     if (builder.rows.length > SCATTER_MAX_ROWS) return out;
     const [a, b] = measures;
+    const points = builder.rows.filter(
+      (r) =>
+        typeof r[a.profile.field.header] === 'number' &&
+        typeof r[b.profile.field.header] === 'number',
+    ).length;
+    if (points < SCATTER_MIN_POINTS) return out;
     out.push({
       widget: {
         ...base(builder, `${header(a)} vs ${header(b)}`),
@@ -213,7 +221,7 @@ function chartCandidates(builder: Builder, picks: Pick[]): Candidate[] {
   // 2、3. 序列時間 ＋ 1～3 個量值：同一單位群組畫折線；兩個群組畫組合圖（左軸長條、右軸折線）。
   if (dims.length === 1 && ts.length === 1 && measures.length >= 1 && measures.length <= 3) {
     const [t] = ts;
-    if (t.profile.distinct < 3 || groups.length > 2) return out;
+    if (t.profile.distinct < TREND_MIN_POINTS || groups.length > 2) return out;
     if (groups.length === 2) {
       out.push({
         widget: comboOf(builder, t, groups, `${headers(measures)}趨勢`),
@@ -223,16 +231,17 @@ function chartCandidates(builder: Builder, picks: Pick[]): Candidate[] {
     }
     const y = measures.map(measure);
     const title = `${headers(measures)}趨勢`;
-    out.push(
-      {
-        widget: { ...base(builder, title), type: 'line', encoding: { x: dim(t), y } },
-        reason: `「${header(t)}」有 ${t.profile.distinct} 個時間點，適合看趨勢`,
-      },
-      {
+    out.push({
+      widget: { ...base(builder, title), type: 'line', encoding: { x: dim(t), y } },
+      reason: `「${header(t)}」有 ${t.profile.distinct} 個時間點，適合看趨勢`,
+    });
+    // 時間軸不能依大小排序，期數太多時長條擠不下，只推薦折線。
+    if (t.profile.distinct <= MANY_VALUES) {
+      out.push({
         widget: { ...base(builder, title), type: 'bar', encoding: { x: dim(t), y } },
         reason: '也可以用長條比較各期的大小',
-      },
-    );
+      });
+    }
     return out;
   }
 
@@ -244,6 +253,7 @@ function chartCandidates(builder: Builder, picks: Pick[]): Candidate[] {
     if (ts.length === 1 && cs.length === 1 && cs[0].level === 'few' && dims.length === 2) {
       const [t] = ts;
       const [c] = cs;
+      if (t.profile.distinct < TREND_MIN_POINTS) return out;
       const title = `各${header(c)}${header(m)}趨勢`;
       out.push({
         widget: {
@@ -253,7 +263,7 @@ function chartCandidates(builder: Builder, picks: Pick[]): Candidate[] {
         },
         reason: `依「${header(c)}」分線，比較各${header(c)}的趨勢`,
       });
-      if (!isRatio) {
+      if (!isRatio && t.profile.distinct <= MANY_VALUES) {
         out.push({
           widget: {
             ...base(builder, title),
@@ -271,7 +281,7 @@ function chartCandidates(builder: Builder, picks: Pick[]): Candidate[] {
     if (tc.length === 1 && ts.length === 1 && dims.length === 2) {
       const [cycle] = tc;
       const [t] = ts;
-      if (t.profile.distinct > 6) return out;
+      if (t.profile.distinct > 6 || cycle.profile.distinct < TREND_MIN_POINTS) return out;
       const encoding = { x: dim(cycle), y: [measure(m)], group: dim(t) };
       const title = `${header(m)}同期比較`;
       out.push(

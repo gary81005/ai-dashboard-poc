@@ -193,8 +193,10 @@ function generalChecks(widget: Widget, ctx: Context): WidgetWarning[] {
       message: `同一條 Y 軸上有不同單位的數值（${headers.join('、')}），建議改用組合圖分左右軸`,
     });
   }
-  if (widget.type === 'bar' && widget.encoding.x) {
-    const n = ctx.profileOf(widget.encoding.x.field.header)?.distinct ?? 0;
+  // 時間軸不檢查：時間要照先後排，不能依大小排序或只取前 N 名。
+  const barX = widget.type === 'bar' ? widget.encoding.x : undefined;
+  if (widget.type === 'bar' && barX && ctx.profileOf(barX.field.header)?.kind.kind !== 'time') {
+    const n = ctx.profileOf(barX.field.header)?.distinct ?? 0;
     if (n > BAR_MANY && !widget.options?.sort && !widget.options?.limit) {
       out.push({
         id: 'bar-many',

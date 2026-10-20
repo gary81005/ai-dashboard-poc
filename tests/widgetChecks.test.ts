@@ -202,6 +202,15 @@ describe('通用檢查', () => {
     const sorted: Widget = { ...bar, options: { sort: 'desc', limit: 10 } };
     expect((await check('mlb', sorted)).warnings).toEqual([]);
   });
+
+  it('時間軸的長條不提醒排序（時間要照先後排）', async () => {
+    const bar: Widget = {
+      ...base(MONTHLY),
+      type: 'bar',
+      encoding: { x: ref('年月'), y: [m('營業額')] },
+    };
+    expect((await check('restaurant', bar)).warnings).toEqual([]);
+  });
 });
 
 describe('其他', () => {

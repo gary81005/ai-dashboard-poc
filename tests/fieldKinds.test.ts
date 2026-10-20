@@ -2,12 +2,12 @@ import { describe, expect, it } from 'vitest';
 import {
   classifyField,
   groupOf,
-  isInferredRatio,
   levelOf,
   profileTable,
   profilesOf,
 } from '../src/utils/fieldKinds.ts';
 import type { FieldKind } from '../src/utils/fieldKinds.ts';
+import { isInferredRatio } from '../src/utils/inference.ts';
 import type { Field, Row } from '../src/types/index.ts';
 import { loadTable } from './workbooks.ts';
 import type { WorkbookName } from './workbooks.ts';
@@ -266,5 +266,13 @@ describe('profilesOf', () => {
     const after = profilesOf({ ...table, fields }, rows);
     expect(after).not.toBe(before);
     expect(after.find((p) => p.field.header === '是否合格打者')?.field.role).toBe('dimension');
+  });
+});
+
+describe('classifyField 的數值範圍', () => {
+  it('20 萬筆也不會超過呼叫堆疊上限', () => {
+    const values = Array.from({ length: 200_000 }, (_, i) => i - 1000);
+    const profile = classifyField(measure('營業額'), rowsOf('營業額', values));
+    expect(profile.range).toEqual({ min: -1000, max: 198_999 });
   });
 });

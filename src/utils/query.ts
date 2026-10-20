@@ -6,7 +6,7 @@
 // 這裡全是純函式、不依賴 React，可以直接在 Node 中執行測試。
 
 import { measureLabel, resolveField } from './fields.ts';
-import { isPeriodValue } from './inference.ts';
+import { isInferredRatio, isPeriodValue } from './inference.ts';
 import type {
   Agg,
   CellValue,
@@ -378,11 +378,12 @@ export type TableResult = {
 };
 
 // 合計列每一欄的彙總方式：有設彙總就沿用；明細表的量值欄預設加總。
-// 沒有分子分母的比率欄位加總沒有意義，不合計。
+// 沒有分子分母的比率欄位（含標頭像比率、還沒標記的推測比率）加總沒有意義，不合計。
 function totalAgg(column: TableResultColumn): Agg | undefined {
   if (column.agg) return column.agg;
   if (column.field.role !== 'measure') return undefined;
-  if (column.field.ratio && !column.field.ratioOf) return undefined;
+  const ratio = column.field.ratio || isInferredRatio(column.field.header);
+  if (ratio && !column.field.ratioOf) return undefined;
   return 'sum';
 }
 

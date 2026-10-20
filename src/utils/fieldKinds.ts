@@ -6,7 +6,7 @@
 // 不論角色都歸為分類（量值角色的旗標被放進數值槽位時才加總，代表「符合的筆數」）。
 
 import type { DataTable, Field, Row } from '../types/index.ts';
-import { CYCLE_HEADERS, SEQUENCE_HEADERS, isPeriodValue } from './inference.ts';
+import { CYCLE_HEADERS, SEQUENCE_HEADERS, isInferredRatio, isPeriodValue } from './inference.ts';
 import { BLANK_CATEGORY, orderCategories } from './query.ts';
 
 // 分類的級別：依不同值的數量（不含空白）。single 是只有 1 種值，不推薦任何圖表。
@@ -43,18 +43,12 @@ const SAMPLE_COUNT = 5;
 const IDENTIFIER_MIN = 30;
 const IDENTIFIER_SUFFIX = /(名稱|姓名|代號|編號|ID)$/i;
 const FLAG_PREFIX = /^(是否|有無)/;
-const INFERRED_RATIO_SUFFIX = /(率|比|指數|均)$/;
 
 export function levelOf(distinct: number): CategoryLevel {
   if (distinct <= 1) return 'single';
   if (distinct <= 6) return 'few';
   if (distinct <= 12) return 'some';
   return 'many';
-}
-
-// 推測比率：沒被標成比率，但標頭像比率，例如 上壘率、防禦率、整體攻擊指數、每九局三振。
-export function isInferredRatio(header: string): boolean {
-  return INFERRED_RATIO_SUFFIX.test(header) || header.includes('平均') || header.includes('每');
 }
 
 // 只看中繼資料的旗標判斷：整數，而且標頭以「是否／有無」開頭或單位是「1=是」。
@@ -96,6 +90,18 @@ function kindOf(
   return { kind: 'measure' };
 }
 
+// 用迴圈而不是 Math.min(...numbers)：展開成參數在十幾萬筆時會超過呼叫堆疊上限（RangeError）。
+function rangeOf(numbers: readonly number[]): FieldProfile['range'] {
+  if (numbers.length === 0) return null;
+  let min = numbers[0];
+  let max = numbers[0];
+  for (const n of numbers) {
+    if (n < min) min = n;
+    if (n > max) max = n;
+  }
+  return { min, max };
+}
+
 export function classifyField(field: Field, rows: readonly Row[]): FieldProfile {
   const values = rows.map((r) => r[field.header]).filter((v) => v !== null && v !== '');
   const ordered = orderCategories(rows, field).filter((v) => v !== BLANK_CATEGORY);
@@ -108,7 +114,7 @@ export function classifyField(field: Field, rows: readonly Row[]): FieldProfile 
     kind,
     distinct: ordered.length,
     samples: dimensionLike ? ordered.slice(0, SAMPLE_COUNT) : [],
-    range: numbers.length > 0 ? { min: Math.min(...numbers), max: Math.max(...numbers) } : null,
+    range: rangeOf(numbers),
   };
 }
 
