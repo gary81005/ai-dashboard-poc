@@ -20,6 +20,25 @@ export const WIDGET_TYPE_LABELS: Record<WidgetType, string> = {
 
 export const WIDGET_TYPES = Object.keys(WIDGET_TYPE_LABELS) as WidgetType[];
 
+// 新增元件選單與「圖表類型」下拉選單裡的說明（ADR 0010 §7 ⑥）：一句用途與需要的欄位。
+export const WIDGET_TYPE_GUIDES: Record<WidgetType, { purpose: string; needs: string }> = {
+  line: { purpose: '看隨時間的變化', needs: '時間 ＋ 數值' },
+  bar: { purpose: '比較各分類的大小', needs: '分類 ＋ 數值' },
+  combo: { purpose: '金額與比率放在同一張圖', needs: '時間 ＋ 金額 ＋ 比率' },
+  pie: { purpose: '看占比，分類 6 種以內', needs: '分類 ＋ 1 個數值' },
+  scatter: { purpose: '看兩個數值的關係', needs: '2 個數值（＋ 明細）' },
+  radar: { purpose: '比較多個項目的特性', needs: '3～12 種分類 ＋ 數值' },
+  gauge: { purpose: '一個比率落在範圍的哪裡', needs: '1 個比率' },
+  kpi: { purpose: '一個重點數字', needs: '1 個數值' },
+  table: { purpose: '列出明細或分組彙總', needs: '任意欄位' },
+  text: { purpose: '說明與註記', needs: '不需要欄位' },
+};
+
+export function widgetTypeGuideText(type: WidgetType): string {
+  const { purpose, needs } = WIDGET_TYPE_GUIDES[type];
+  return `${purpose}｜${needs}`;
+}
+
 // 槽位種類：dimension = 單一維度欄位、measure = 單一量值、measures = 多個量值、columns = 任意欄位（資料表格用）
 export type SlotKind = 'dimension' | 'measure' | 'measures' | 'columns';
 

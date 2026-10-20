@@ -1,16 +1,22 @@
-// 編輯模式的「元件設定」面板：標題、說明、圖表類型、資料表資訊、各槽位、篩選、樣式選項、刪除。
+// 編輯模式的「元件設定」面板：標題、說明、圖表類型（選單附用途說明）、資料表資訊、各槽位、篩選、樣式選項、刪除。
 // 文字元件不綁資料表，只有內容輸入框（ADR 0008）。
 //
 // 每次修改都立即寫回 store（updateWidget），格線上的圖表會同步更新。
 
 import Button from '@mui/material/Button';
 import Divider from '@mui/material/Divider';
+import ListItemText from '@mui/material/ListItemText';
 import MenuItem from '@mui/material/MenuItem';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { WIDGET_SLOTS, WIDGET_TYPE_LABELS, WIDGET_TYPES } from '../../constants/widgetTypes.ts';
+import {
+  WIDGET_SLOTS,
+  WIDGET_TYPE_LABELS,
+  WIDGET_TYPES,
+  widgetTypeGuideText,
+} from '../../constants/widgetTypes.ts';
 import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { Dashboard, Dataset, DatasetRows, Widget, WidgetType } from '../../types/index.ts';
@@ -78,10 +84,17 @@ export function WidgetEditor({ dashboard, widget, dataset, rows }: Props) {
           label='圖表類型'
           value={widget.type}
           onChange={(e) => save(convertWidget(widget, e.target.value as WidgetType))}
+          // 選單裡附用途說明，選定後欄位裡只顯示名稱。
+          slotProps={{
+            select: { renderValue: (value) => WIDGET_TYPE_LABELS[value as WidgetType] },
+          }}
         >
           {WIDGET_TYPES.map((type) => (
             <MenuItem key={type} value={type}>
-              {WIDGET_TYPE_LABELS[type]}
+              <ListItemText
+                primary={WIDGET_TYPE_LABELS[type]}
+                secondary={widgetTypeGuideText(type)}
+              />
             </MenuItem>
           ))}
         </TextField>
