@@ -10,7 +10,7 @@
 // 響應式（ADR 0009）：編輯模式需要寬度 1200px 以上（lg），更窄時「編輯」按鈕停用，編輯中變窄就自動回到
 // 檢視模式（未儲存的變更仍保留）。md 以下，標題列換行，「切換資料來源」「匯出 JSON」收進「更多」選單。
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import Alert from '@mui/material/Alert';
@@ -32,6 +32,7 @@ import { DashboardGrid } from '../components/dashboard/DashboardGrid.tsx';
 import { RebindDialog } from '../components/dashboard/RebindDialog.tsx';
 import { AddWidgetButton } from '../components/editor/AddWidgetButton.tsx';
 import { FieldPanel } from '../components/editor/FieldPanel.tsx';
+import { PanelResizer } from '../components/editor/PanelResizer.tsx';
 import { RecommendPanel } from '../components/editor/RecommendPanel.tsx';
 import type { CheckedFields } from '../components/editor/RecommendPanel.tsx';
 import { WidgetEditor } from '../components/editor/WidgetEditor.tsx';
@@ -40,7 +41,7 @@ import { saveActiveDashboard } from '../services/dashboardService.ts';
 import { downloadJson } from '../services/download.ts';
 import { useAppStore } from '../store/appStore.ts';
 import { useRowsStore } from '../store/rowsStore.ts';
-import { useUiStore } from '../store/uiStore.ts';
+import { DEFAULT_PANEL_WIDTHS, useUiStore } from '../store/uiStore.ts';
 import type { Dashboard, Dataset, DatasetRows } from '../types/index.ts';
 import { buildExport } from '../utils/dashboardTransfer.ts';
 
@@ -243,7 +244,13 @@ const sidePanel = {
   overflowY: 'auto',
 } as const;
 
+// 編輯模式欄位之間的把手寬度（同時是間距）、面板的最小寬度，以及儀表板區域至少保留的寬度。
+const RESIZER_WIDTH = 16;
+const PANEL_MIN = { fields: 180, editor: 280 };
+const GRID_MIN_WIDTH = 400;
+
 // 編輯模式的工作區。DndProvider 只包在這裡，因為只有編輯模式需要拖放欄位。
+// 欄位清單與元件設定的寬度可以用中間的把手調整（PanelResizer），寬度記在 uiStore。
 function EditWorkspace({
   dashboard,
   dataset,
@@ -255,6 +262,12 @@ function EditWorkspace({
 }) {
   const selectedWidgetId = useUiStore((s) => s.selectedWidgetId);
   const selectedWidget = dashboard.widgets.find((w) => w.id === selectedWidgetId);
+  const panelWidths = useUiStore((s) => s.panelWidths);
+  const setPanelWidth = useUiStore((s) => s.setPanelWidth);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+  // 一個面板最多能多寬：容器扣掉另一個面板、兩個把手，再保留儀表板區域的最小寬度。
+  const maxPanelWidth = (other: number) =>
+    (workspaceRef.current?.clientWidth ?? 0) - other - 2 * RESIZER_WIDTH - GRID_MIN_WIDTH;
   // 欄位清單上勾選的欄位（ADR 0010 §7 ④）：只能來自同一張資料表，勾了別張表的欄位就重新開始。
   const [checked, setChecked] = useState<CheckedFields | null>(null);
   // 勾選時右側面板顯示推薦；在格線上點選另一個元件時清除勾選，右側面板改回元件設定。
@@ -277,11 +290,12 @@ function EditWorkspace({
   return (
     <DndProvider backend={HTML5Backend}>
       <Box
+        ref={workspaceRef}
         sx={{
           display: 'grid',
-          gap: 2,
-          // 欄位清單緊貼在元件設定旁邊，拖拉距離最短。
-          gridTemplateColumns: 'minmax(0, 1fr) 220px 340px',
+          rowGap: 2,
+          // 欄位清單緊貼在元件設定旁邊，拖拉距離最短。兩個窄欄是調整寬度的把手，同時當作間距。
+          gridTemplateColumns: `minmax(0, 1fr) ${RESIZER_WIDTH}px ${panelWidths.fields}px ${RESIZER_WIDTH}px ${panelWidths.editor}px`,
           alignItems: 'start',
         }}
       >
@@ -293,6 +307,14 @@ function EditWorkspace({
             <DashboardGrid dashboard={dashboard} dataset={dataset} rows={rows} />
           )}
         </Stack>
+        <PanelResizer
+          label='調整欄位清單寬度'
+          width={panelWidths.fields}
+          min={PANEL_MIN.fields}
+          defaultWidth={DEFAULT_PANEL_WIDTHS.fields}
+          maxWidth={() => maxPanelWidth(panelWidths.editor)}
+          onChange={(width) => setPanelWidth('fields', width)}
+        />
         <Box sx={sidePanel}>
           <FieldPanel
             dataset={dataset}
@@ -302,6 +324,14 @@ function EditWorkspace({
             onToggle={toggleField}
           />
         </Box>
+        <PanelResizer
+          label='調整元件設定寬度'
+          width={panelWidths.editor}
+          min={PANEL_MIN.editor}
+          defaultWidth={DEFAULT_PANEL_WIDTHS.editor}
+          maxWidth={() => maxPanelWidth(panelWidths.fields)}
+          onChange={(width) => setPanelWidth('editor', width)}
+        />
         <Box sx={sidePanel}>
           {checked ? (
             <RecommendPanel

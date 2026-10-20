@@ -1,5 +1,5 @@
 // 不持久化的 UI 狀態：目前畫面、是否在編輯模式、選取中的 widget、儀表板篩選選取的值、
-// 全域提示、離開前的確認。
+// 全域提示、離開前的確認、編輯模式面板的寬度。
 //
 // 沒有 router（ADR 0001），三個畫面用 view 切換；重新整理後會回到儀表板清單。
 
@@ -15,6 +15,10 @@ export type Notice = { severity: 'success' | 'warning' | 'error'; message: strin
 // 記下所屬的儀表板，換頁時清空。
 export type FilterValues = { dashboardId: string; values: Record<string, string[]> };
 
+// 編輯模式右側兩個面板的寬度（px），由欄位之間的拖曳把手調整。只存在記憶體，重新整理後回到預設。
+export type PanelWidths = { fields: number; editor: number };
+export const DEFAULT_PANEL_WIDTHS: PanelWidths = { fields: 220, editor: 340 };
+
 type UiState = {
   view: View;
   editing: boolean;
@@ -24,6 +28,7 @@ type UiState = {
   // 資料集頁要自動展開的卡片，讓使用者先看到欄位健檢（ADR 0010 §7 ③）：
   // 剛上傳的資料集，或從編輯模式欄位清單的「到資料集頁處理」過來的資料集。
   expandDatasetId: string | null;
+  panelWidths: PanelWidths;
   // 有未儲存的變更時，被擋下來的離開動作；App 的 UnsavedChangesDialog 決定儲存、捨棄或取消。
   pendingLeave: (() => void) | null;
   navigate: (view: View) => void;
@@ -35,6 +40,7 @@ type UiState = {
   clearFilterValues: () => void;
   notify: (notice: Notice | null) => void;
   setExpandDatasetId: (datasetId: string | null) => void;
+  setPanelWidth: (panel: keyof PanelWidths, width: number) => void;
 };
 
 export const useUiStore = create<UiState>()((set, get) => ({
@@ -44,6 +50,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   filterValues: null,
   notice: null,
   expandDatasetId: null,
+  panelWidths: DEFAULT_PANEL_WIDTHS,
   pendingLeave: null,
   // 換頁時一律離開編輯模式、取消選取並清空儀表板篩選，避免帶著舊的狀態進到別的儀表板。
   navigate: (view) =>
@@ -67,4 +74,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
   clearFilterValues: () => set({ filterValues: null }),
   notify: (notice) => set({ notice }),
   setExpandDatasetId: (expandDatasetId) => set({ expandDatasetId }),
+  setPanelWidth: (panel, width) =>
+    set((s) => ({ panelWidths: { ...s.panelWidths, [panel]: width } })),
 }));
