@@ -32,6 +32,8 @@ import { DashboardGrid } from '../components/dashboard/DashboardGrid.tsx';
 import { RebindDialog } from '../components/dashboard/RebindDialog.tsx';
 import { AddWidgetButton } from '../components/editor/AddWidgetButton.tsx';
 import { FieldPanel } from '../components/editor/FieldPanel.tsx';
+import { RecommendPanel } from '../components/editor/RecommendPanel.tsx';
+import type { CheckedFields } from '../components/editor/RecommendPanel.tsx';
 import { WidgetEditor } from '../components/editor/WidgetEditor.tsx';
 import { useDatasetRows } from '../hooks/useDatasetRows.ts';
 import { saveActiveDashboard } from '../services/dashboardService.ts';
@@ -253,6 +255,24 @@ function EditWorkspace({
 }) {
   const selectedWidgetId = useUiStore((s) => s.selectedWidgetId);
   const selectedWidget = dashboard.widgets.find((w) => w.id === selectedWidgetId);
+  // 欄位清單上勾選的欄位（ADR 0010 §7 ④）：只能來自同一張資料表，勾了別張表的欄位就重新開始。
+  const [checked, setChecked] = useState<CheckedFields | null>(null);
+  // 勾選時右側面板顯示推薦；在格線上點選另一個元件時清除勾選，右側面板改回元件設定。
+  const [lastSelectedId, setLastSelectedId] = useState(selectedWidgetId);
+  if (selectedWidgetId !== lastSelectedId) {
+    setLastSelectedId(selectedWidgetId);
+    if (selectedWidgetId) setChecked(null);
+  }
+  const toggleField = (table: string, header: string) => {
+    if (checked?.table !== table) {
+      setChecked({ table, headers: [header] });
+      return;
+    }
+    const headers = checked.headers.includes(header)
+      ? checked.headers.filter((h) => h !== header)
+      : [...checked.headers, header];
+    setChecked(headers.length > 0 ? { table, headers } : null);
+  };
 
   return (
     <DndProvider backend={HTML5Backend}>
@@ -274,10 +294,24 @@ function EditWorkspace({
           )}
         </Stack>
         <Box sx={sidePanel}>
-          <FieldPanel dataset={dataset} rows={rows} selectedWidget={selectedWidget} />
+          <FieldPanel
+            dataset={dataset}
+            rows={rows}
+            selectedWidget={selectedWidget}
+            checked={checked}
+            onToggle={toggleField}
+          />
         </Box>
         <Box sx={sidePanel}>
-          {selectedWidget ? (
+          {checked ? (
+            <RecommendPanel
+              dashboard={dashboard}
+              dataset={dataset}
+              rows={rows}
+              checked={checked}
+              onClear={() => setChecked(null)}
+            />
+          ) : selectedWidget ? (
             <WidgetEditor
               key={selectedWidget.id}
               dashboard={dashboard}
@@ -289,7 +323,8 @@ function EditWorkspace({
             <Paper variant='outlined' sx={{ p: 2 }}>
               <Typography variant='body2' color='text.secondary'>
                 點選一個元件來設定欄位與樣式，或用「＋
-                新增元件」加入新的元件。拖動元件標題可以移動位置，拖動右下角可以調整大小。
+                新增元件」加入新的元件。也可以在欄位清單點選幾個欄位，看推薦的圖表。
+                拖動元件標題可以移動位置，拖動右下角可以調整大小。
               </Typography>
             </Paper>
           )}

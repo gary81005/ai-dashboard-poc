@@ -1,4 +1,5 @@
-// 編輯模式的欄位清單：依資料表列出欄位，每個欄位都能用 react-dnd 拖到元件設定的槽位。
+// 編輯模式的欄位清單：依資料表列出欄位，每個欄位都能用 react-dnd 拖到元件設定的槽位，
+// 也能點選勾選，右側面板會依勾選的欄位推薦圖表（ADR 0010 §7 ④，RecommendPanel）。
 //
 // 資料表依種類分組（明細／彙總／主檔／未分類，參數表預設收起來），每張表顯示「一列 = …」與列數
 // （ADR 0010 §3）。搜尋時參數表也會一起搜尋。
@@ -11,6 +12,7 @@ import { useState } from 'react';
 import { useDrag } from 'react-dnd';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import Checkbox from '@mui/material/Checkbox';
 import Chip from '@mui/material/Chip';
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
@@ -33,10 +35,17 @@ import {
 } from '../../utils/tableKinds.ts';
 import type { TableDescription } from '../../utils/tableKinds.ts';
 import { hasAnyField } from '../../utils/widgetEditing.ts';
+import type { CheckedFields } from './RecommendPanel.tsx';
 
-type Props = { dataset: Dataset; rows: DatasetRows; selectedWidget: Widget | undefined };
+type Props = {
+  dataset: Dataset;
+  rows: DatasetRows;
+  selectedWidget: Widget | undefined;
+  checked: CheckedFields | null;
+  onToggle: (table: string, header: string) => void;
+};
 
-export function FieldPanel({ dataset, rows, selectedWidget }: Props) {
+export function FieldPanel({ dataset, rows, selectedWidget, checked, onToggle }: Props) {
   const [query, setQuery] = useState('');
   const [showParameters, setShowParameters] = useState(false);
   const navigate = useUiStore((s) => s.navigate);
@@ -69,7 +78,7 @@ export function FieldPanel({ dataset, rows, selectedWidget }: Props) {
         欄位清單
       </Typography>
       <Typography variant='caption' color='text.secondary' component='p' sx={{ mb: 1 }}>
-        把欄位拖到右側元件設定的槽位上；滑鼠移到欄位上可以看說明
+        把欄位拖到右側元件設定的槽位上，或點選幾個欄位看推薦的圖表；滑鼠移到欄位上可以看說明
       </Typography>
       {suggestionCount > 0 && (
         <Alert
@@ -132,6 +141,8 @@ export function FieldPanel({ dataset, rows, selectedWidget }: Props) {
                     description={description}
                     profiles={profiles}
                     disabled={lockedTable !== undefined && lockedTable !== description.table.key}
+                    checked={checked?.table === description.table.key ? checked.headers : []}
+                    onToggle={(header) => onToggle(description.table.key, header)}
                   />
                 ))
               )}
@@ -147,9 +158,11 @@ type TableSectionProps = {
   description: TableDescription;
   profiles: FieldProfile[];
   disabled: boolean;
+  checked: readonly string[];
+  onToggle: (header: string) => void;
 };
 
-function TableSection({ description, profiles, disabled }: TableSectionProps) {
+function TableSection({ description, profiles, disabled, checked, onToggle }: TableSectionProps) {
   const { table } = description;
   return (
     <section style={{ opacity: disabled ? 0.45 : 1 }}>
@@ -179,7 +192,13 @@ function TableSection({ description, profiles, disabled }: TableSectionProps) {
             </Typography>
             <Stack direction='row' sx={{ flexWrap: 'wrap', gap: 0.75 }}>
               {members.map((profile) => (
-                <FieldChip key={profile.field.header} tableKey={table.key} profile={profile} />
+                <FieldChip
+                  key={profile.field.header}
+                  tableKey={table.key}
+                  profile={profile}
+                  checked={checked.includes(profile.field.header)}
+                  onToggle={() => onToggle(profile.field.header)}
+                />
               ))}
             </Stack>
           </div>
@@ -189,8 +208,16 @@ function TableSection({ description, profiles, disabled }: TableSectionProps) {
   );
 }
 
+type FieldChipProps = {
+  tableKey: string;
+  profile: FieldProfile;
+  checked: boolean;
+  onToggle: () => void;
+};
+
 // 可拖曳的欄位標籤。藍色 = 維度、綠色 = 量值，名稱後的 ％ 代表比率欄位。
-function FieldChip({ tableKey, profile }: { tableKey: string; profile: FieldProfile }) {
+// 點一下勾選（拖曳結束不會觸發點擊）；勾選框只是顯示，點擊由整個標籤處理。
+function FieldChip({ tableKey, profile, checked, onToggle }: FieldChipProps) {
   const { field } = profile;
   const [{ isDragging }, drag] = useDrag({
     type: FIELD_DND_TYPE,
@@ -210,9 +237,25 @@ function FieldChip({ tableKey, profile }: { tableKey: string; profile: FieldProf
           drag(node);
         }}
         size='small'
-        variant='outlined'
+        variant={checked ? 'filled' : 'outlined'}
         color={field.role === 'dimension' ? 'primary' : 'success'}
         label={field.ratio ? `${field.header} ％` : field.header}
+        onClick={onToggle}
+        aria-pressed={checked}
+        icon={
+          <Checkbox
+            size='small'
+            checked={checked}
+            tabIndex={-1}
+            disableRipple
+            sx={{
+              p: 0,
+              color: 'inherit',
+              pointerEvents: 'none',
+              '&.Mui-checked': { color: 'inherit' },
+            }}
+          />
+        }
         sx={{ cursor: 'grab', opacity: isDragging ? 0.4 : 1 }}
       />
     </Tooltip>
