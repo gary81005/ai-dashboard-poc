@@ -30,6 +30,7 @@ import type { Theme } from '@mui/material/styles';
 import { DashboardFilterBar } from '../components/dashboard/DashboardFilterBar.tsx';
 import { DashboardGrid } from '../components/dashboard/DashboardGrid.tsx';
 import { RebindDialog } from '../components/dashboard/RebindDialog.tsx';
+import { SuggestDashboardButton } from '../components/dashboard/SuggestDashboardButton.tsx';
 import { AddWidgetButton } from '../components/editor/AddWidgetButton.tsx';
 import { FieldPanel } from '../components/editor/FieldPanel.tsx';
 import { PanelResizer } from '../components/editor/PanelResizer.tsx';
@@ -221,7 +222,14 @@ function DashboardContent({ dashboard, dataset, editing }: ContentProps) {
       return editing ? (
         <EditWorkspace dashboard={dashboard} dataset={dataset} rows={entry.rows} />
       ) : dashboard.widgets.length === 0 ? (
-        <Alert severity='info'>這個儀表板還沒有元件，點右上角的「編輯」開始新增。</Alert>
+        <Alert
+          severity='info'
+          action={
+            <SuggestDashboardButton dashboard={dashboard} dataset={dataset} rows={entry.rows} />
+          }
+        >
+          這個儀表板還沒有元件，點右上角的「編輯」開始新增，或依資料自動產生建議內容。
+        </Alert>
       ) : (
         <Stack spacing={2}>
           <DashboardFilterBar
@@ -302,7 +310,14 @@ function EditWorkspace({
         <Stack spacing={2} sx={{ minWidth: 0 }}>
           <DashboardFilterBar dashboard={dashboard} dataset={dataset} rows={rows} editing />
           {dashboard.widgets.length === 0 ? (
-            <Alert severity='info'>點右上角的「＋ 新增元件」加入第一個元件。</Alert>
+            <Alert
+              severity='info'
+              action={
+                <SuggestDashboardButton dashboard={dashboard} dataset={dataset} rows={rows} />
+              }
+            >
+              點右上角的「＋ 新增元件」加入第一個元件，或依資料自動產生建議內容。
+            </Alert>
           ) : (
             <DashboardGrid dashboard={dashboard} dataset={dataset} rows={rows} />
           )}
