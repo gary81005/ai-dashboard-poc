@@ -149,7 +149,13 @@ export function WidgetCard({
         </Typography>
       )}
       {filterSummary && (
-        <Typography variant='caption' color='primary' noWrap title={filterSummary} sx={{ mt: -1 }}>
+        <Typography
+          variant='caption'
+          color='text.accent'
+          noWrap
+          title={filterSummary}
+          sx={{ mt: -1 }}
+        >
           篩選：{filterSummary}
         </Typography>
       )}

@@ -238,7 +238,7 @@ function FieldChip({ tableKey, profile, checked, onToggle }: FieldChipProps) {
         }}
         size='small'
         variant={checked ? 'filled' : 'outlined'}
-        color={field.role === 'dimension' ? 'primary' : 'success'}
+        color={field.role === 'dimension' ? 'info' : 'success'}
         label={field.ratio ? `${field.header} ％` : field.header}
         onClick={onToggle}
         aria-pressed={checked}

@@ -149,10 +149,10 @@ export function DropZone({
           border: '1px dashed',
           borderColor: isOver
             ? canDrop
-              ? 'primary.main'
+              ? 'primary.dark'
               : 'error.main'
             : canDrop
-              ? 'primary.light'
+              ? 'primary.main'
               : 'divider',
           bgcolor: isOver && canDrop ? 'action.hover' : 'transparent',
         }}
