@@ -25,6 +25,7 @@ dist-ssr
 
 **/.claude/*
 !**/.claude/agent-memory/
+/graphify-out
 
 # Left behind when `npm run db:types` fails
 src/types/database.ts.tmp
