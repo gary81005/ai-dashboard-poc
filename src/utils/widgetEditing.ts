@@ -17,7 +17,7 @@ import type {
 import { looksLikeFlag } from './fieldKinds.ts';
 import { toFieldRef } from './fields.ts';
 import { createId } from './ids.ts';
-import { isInferredRatio } from './inference.ts';
+import { isInferredRatioField } from './inference.ts';
 
 // 槽位裡的一個項目，統一各種槽位的形狀：維度只有 field，量值多了 agg，組合圖再多 mark／axis。
 export type SlotEntry = {
@@ -74,7 +74,7 @@ export function writeSlot(widget: Widget, slot: SlotDef, entries: readonly SlotE
 export function defaultAgg(field: Field): Agg {
   if (looksLikeFlag(field)) return 'sum';
   if (field.role === 'dimension') return 'count';
-  return field.ratio || isInferredRatio(field.header) ? 'avg' : 'sum';
+  return field.ratio || isInferredRatioField(field) ? 'avg' : 'sum';
 }
 
 // 維度槽位只接受維度；數值與表格欄位槽位接受任何欄位（維度會以計數彙總）。

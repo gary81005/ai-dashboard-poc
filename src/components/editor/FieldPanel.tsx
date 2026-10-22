@@ -297,7 +297,7 @@ function formulaText(profile: FieldProfile): string | undefined {
     return '合併多列時是非加權平均，只能參考；可到資料集頁指定分子分母';
   }
   if (kind.kind === 'ratio' && kind.ratio === 'inferred') {
-    return '標頭看起來像比率，預設用平均；可到資料集頁正式標記';
+    return '標頭看起來像比率，預設用平均；可到資料集頁正式標記，不是比率的話在欄位健檢忽略';
   }
   if (kind.kind === 'category' && kind.flag) {
     return '放進數值槽位時加總，代表符合的筆數';

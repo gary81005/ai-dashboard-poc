@@ -140,6 +140,23 @@ describe('classifyField 規則邊界', () => {
     });
   });
 
+  it('使用者忽略過比率建議（userOverride ratio、沒有 ratio）的欄位是一般量值', () => {
+    const rows = rowsOf('平均月薪', [42000]);
+    const dismissed = measure('平均月薪', { userOverride: ['ratio'] });
+    expect(classifyField(dismissed, rows).kind).toEqual({ kind: 'measure' });
+  });
+
+  it('手動取消比率的欄位，不再依標頭推測成比率', () => {
+    const rows = rowsOf('每月營業額', [120000, 98000]);
+    expect(classifyField(measure('每月營業額'), rows).kind).toEqual({
+      kind: 'ratio',
+      ratio: 'inferred',
+    });
+    // 欄位表格關掉比率開關後的樣子（appStore 的 patchField）：沒有 ratio、記下 ratio 覆寫。
+    const cancelled = measure('每月營業額', { userOverride: ['ratio'] });
+    expect(classifyField(cancelled, rows).kind).toEqual({ kind: 'measure' });
+  });
+
   it('樣本與範圍', () => {
     const profile = classifyField(dim('區域'), rowsOf('區域', ['北', '中', '北', null, '南']));
     expect(profile.distinct).toBe(3);

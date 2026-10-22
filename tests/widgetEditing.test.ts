@@ -20,6 +20,15 @@ describe('defaultAgg', () => {
     expect(defaultAgg(field('每九局三振'))).toBe('avg');
   });
 
+  it('忽略過比率建議的欄位改回加總', () => {
+    expect(defaultAgg(field('平均金額', { userOverride: ['ratio'] }))).toBe('sum');
+  });
+
+  it('手動取消比率的欄位，標頭像比率也加總', () => {
+    // 欄位表格關掉比率開關後的樣子（appStore 的 patchField）：沒有 ratio、記下 ratio 覆寫。
+    expect(defaultAgg(field('每月營業額', { userOverride: ['ratio'] }))).toBe('sum');
+  });
+
   it('維度放進數值槽位就計數', () => {
     expect(defaultAgg(field('門市名稱', { dataType: 'text', role: 'dimension' }))).toBe('count');
   });

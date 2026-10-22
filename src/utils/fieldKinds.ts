@@ -6,7 +6,12 @@
 // 不論角色都歸為分類（量值角色的旗標被放進數值槽位時才加總，代表「符合的筆數」）。
 
 import type { DataTable, Field, Row } from '../types/index.ts';
-import { CYCLE_HEADERS, SEQUENCE_HEADERS, isInferredRatio, isPeriodValue } from './inference.ts';
+import {
+  CYCLE_HEADERS,
+  SEQUENCE_HEADERS,
+  isInferredRatioField,
+  isPeriodValue,
+} from './inference.ts';
 import { BLANK_CATEGORY, orderCategories } from './query.ts';
 
 // 分類的級別：依不同值的數量（不含空白）。single 是只有 1 種值，不推薦任何圖表。
@@ -86,7 +91,7 @@ function kindOf(
   }
   if (field.ratioOf) return { kind: 'ratio', ratio: 'weighted' };
   if (field.ratio) return { kind: 'ratio', ratio: 'unweighted' };
-  if (isInferredRatio(field.header)) return { kind: 'ratio', ratio: 'inferred' };
+  if (isInferredRatioField(field)) return { kind: 'ratio', ratio: 'inferred' };
   return { kind: 'measure' };
 }
 

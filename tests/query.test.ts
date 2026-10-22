@@ -30,6 +30,20 @@ describe('queryTable 合計', () => {
     expect(Object.values(result.totals)).toEqual([null, 3000, null, null]);
   });
 
+  it('忽略過比率建議的欄位照常合計', () => {
+    const dismissed: DataTable = {
+      ...table,
+      fields: table.fields.map((f) =>
+        f.header === '平均客單價' ? { ...f, userOverride: ['ratio'] } : f,
+      ),
+    };
+    const result = queryTable({ table: dismissed, rows, filters: [] }, [
+      { field: { header: '門市' } },
+      { field: { header: '平均客單價' } },
+    ]);
+    expect(Object.values(result.totals)).toEqual([null, 300]);
+  });
+
   it('有設彙總方式的欄位照彙總方式合計', () => {
     const result = queryTable({ table, rows, filters: [] }, [
       { field: { header: '門市' } },

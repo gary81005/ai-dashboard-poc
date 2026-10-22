@@ -44,6 +44,15 @@ describe('checkFields', () => {
     ]);
   });
 
+  it('忽略：維持目前的值，只記成覆寫', () => {
+    const got = checkFields(datasetOf([tableOf(fields)]), rows);
+    expect(got.map((s) => [s.header, s.dismiss])).toEqual([
+      ['球季', { role: 'measure' }],
+      ['是否合格', { role: 'measure' }],
+      ['上壘率', { ratio: false }],
+    ]);
+  });
+
   it('使用者手動調整過的項目不再提出建議', () => {
     const overridden = [
       field('球季', { userOverride: ['role'] }),

@@ -1,5 +1,6 @@
-// 欄位健檢（ADR 0010 §7 ③）：找出角色或比率標記可能不對的欄位，列成建議讓使用者逐條或全部套用。
-// 套用後由 store 記成 userOverride，所以使用者手動調整過的項目不再提出建議。
+// 欄位健檢（ADR 0010 §7 ③）：找出角色或比率標記可能不對的欄位，列成建議讓使用者逐條或全部套用，
+// 判斷錯的可以忽略。套用或忽略都由 store 記成 userOverride，所以使用者決定過的項目不再提出建議。
+// 忽略比率建議代表「不是比率」：之後不再當成推測比率（inference.ts 的 isInferredRatioField）。
 //
 // 三種建議：
 //   - role：依目前的角色規則（例如 0010 擴充的時間標頭）應該是維度，但存成了量值。
@@ -11,7 +12,7 @@
 
 import type { Dataset, DatasetRows, Field, Role } from '../types/index.ts';
 import { isFlag } from './fieldKinds.ts';
-import { CYCLE_HEADERS, SEQUENCE_HEADERS, inferRole, isInferredRatio } from './inference.ts';
+import { CYCLE_HEADERS, SEQUENCE_HEADERS, inferRole, isInferredRatioField } from './inference.ts';
 
 export type HealthKind = 'role' | 'flag' | 'ratio';
 
@@ -25,6 +26,8 @@ export type HealthSuggestion = {
   message: string;
   // 與 appStore 的 FieldPatch 同形狀。
   patch: { role?: Role; ratio?: boolean };
+  // 忽略：維持目前的值，只記成使用者覆寫。
+  dismiss: { role?: Role; ratio?: boolean };
 };
 
 function overridden(field: Field, key: 'role' | 'ratio'): boolean {
@@ -41,7 +44,7 @@ function roleMessage(field: Field): string {
 function suggestionFor(
   field: Field,
   values: readonly unknown[],
-): Omit<HealthSuggestion, 'id' | 'tableKey' | 'sheetName' | 'header'> | undefined {
+): Omit<HealthSuggestion, 'id' | 'tableKey' | 'sheetName' | 'header' | 'dismiss'> | undefined {
   if (field.role === 'measure' && !overridden(field, 'role')) {
     if (inferRole(field.header, field.dataType, values) === 'dimension') {
       return { kind: 'role', message: roleMessage(field), patch: { role: 'dimension' } };
@@ -55,13 +58,7 @@ function suggestionFor(
       };
     }
   }
-  if (
-    field.role === 'measure' &&
-    !field.ratio &&
-    !overridden(field, 'ratio') &&
-    !isFlag(field, values) &&
-    isInferredRatio(field.header)
-  ) {
+  if (field.role === 'measure' && !isFlag(field, values) && isInferredRatioField(field)) {
     return {
       kind: 'ratio',
       message:
@@ -86,6 +83,7 @@ export function checkFields(dataset: Dataset, rows: DatasetRows): HealthSuggesti
       if (!suggestion) continue;
       suggestions.push({
         ...suggestion,
+        dismiss: suggestion.kind === 'ratio' ? { ratio: false } : { role: field.role },
         id: `${table.key}\u0000${field.header}`,
         tableKey: table.key,
         sheetName: table.sheetName,

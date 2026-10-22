@@ -180,7 +180,7 @@ function generalChecks(widget: Widget, ctx: Context): WidgetWarning[] {
         id: `avg:${key}`,
         level: 'tip',
         message: inferred
-          ? `「${m.field.header}」看起來是比率但還沒標記，目前的平均是非加權平均；到資料集頁標記並指定分子分母會更準`
+          ? `「${m.field.header}」看起來是比率但還沒標記，目前的平均是非加權平均；到資料集頁標記並指定分子分母會更準，不是比率的話可以在欄位健檢忽略`
           : `「${m.field.header}」沒有分子分母，合併多列時是非加權平均，只能參考；可到資料集頁指定分子分母`,
         markRatio: true,
       });

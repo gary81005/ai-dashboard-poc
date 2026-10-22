@@ -6,7 +6,7 @@
 // 這裡全是純函式、不依賴 React，可以直接在 Node 中執行測試。
 
 import { measureLabel, resolveField } from './fields.ts';
-import { isInferredRatio, isPeriodValue } from './inference.ts';
+import { isInferredRatioField, isPeriodValue } from './inference.ts';
 import type {
   Agg,
   CellValue,
@@ -382,7 +382,7 @@ export type TableResult = {
 function totalAgg(column: TableResultColumn): Agg | undefined {
   if (column.agg) return column.agg;
   if (column.field.role !== 'measure') return undefined;
-  const ratio = column.field.ratio || isInferredRatio(column.field.header);
+  const ratio = column.field.ratio || isInferredRatioField(column.field);
   if (ratio && !column.field.ratioOf) return undefined;
   return 'sum';
 }

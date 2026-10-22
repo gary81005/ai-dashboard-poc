@@ -2,7 +2,7 @@
 //
 // 解析 Excel 時呼叫（services/parseWorkbook.ts）；使用者可以在資料集頁手動覆寫，結果記在 Field.userOverride。
 
-import type { DataType, Role } from '../types/index.ts';
+import type { DataType, Field, Role } from '../types/index.ts';
 
 const PERIOD_PATTERN = /^\d{4}-\d{2}$/;
 
@@ -45,6 +45,13 @@ const INFERRED_RATIO_SUFFIX = /(率|比|指數|均)$/;
 // 每九局三振。只影響推薦、預設彙總與合計，不改欄位的中繼資料。
 export function isInferredRatio(header: string): boolean {
   return INFERRED_RATIO_SUFFIX.test(header) || header.includes('平均') || header.includes('每');
+}
+
+// 這個欄位要不要當成推測比率：標頭像比率、還沒標成比率，而且使用者沒有手動決定過比率標記。
+// 在欄位健檢按「忽略」或手動取消比率，會記成 userOverride 'ratio'（ratio 不設定），
+// 代表「不是比率」，例如「平均金額」「平均月薪」：之後一律當成一般量值，預設加總、顯示合計。
+export function isInferredRatioField(field: Field): boolean {
+  return !field.ratio && !field.userOverride?.includes('ratio') && isInferredRatio(field.header);
 }
 
 // 型別是百分比、或 Excel 格式含 %，就視為比率（不可加總）。
