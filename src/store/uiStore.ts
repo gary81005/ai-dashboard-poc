@@ -18,6 +18,8 @@ export type FilterValues = { dashboardId: string; values: Record<string, string[
 // 編輯模式右側兩個面板的寬度（px），由欄位之間的拖曳把手調整。只存在記憶體，重新整理後回到預設。
 export type PanelWidths = { fields: number; editor: number };
 export const DEFAULT_PANEL_WIDTHS: PanelWidths = { fields: 220, editor: 340 };
+// 向右收合的面板：收合後只剩一條窄條，讓儀表板區域變大。同樣只存在記憶體。
+export type CollapsedPanels = Record<keyof PanelWidths, boolean>;
 
 type UiState = {
   view: View;
@@ -29,6 +31,7 @@ type UiState = {
   // 剛上傳的資料集，或從編輯模式欄位清單的「到資料集頁處理」過來的資料集。
   expandDatasetId: string | null;
   panelWidths: PanelWidths;
+  collapsedPanels: CollapsedPanels;
   // 有未儲存的變更時，被擋下來的離開動作；App 的 UnsavedChangesDialog 決定儲存、捨棄或取消。
   pendingLeave: (() => void) | null;
   navigate: (view: View) => void;
@@ -41,6 +44,7 @@ type UiState = {
   notify: (notice: Notice | null) => void;
   setExpandDatasetId: (datasetId: string | null) => void;
   setPanelWidth: (panel: keyof PanelWidths, width: number) => void;
+  setPanelCollapsed: (panel: keyof PanelWidths, collapsed: boolean) => void;
 };
 
 export const useUiStore = create<UiState>()((set, get) => ({
@@ -51,6 +55,7 @@ export const useUiStore = create<UiState>()((set, get) => ({
   notice: null,
   expandDatasetId: null,
   panelWidths: DEFAULT_PANEL_WIDTHS,
+  collapsedPanels: { fields: false, editor: false },
   pendingLeave: null,
   // 換頁時一律離開編輯模式、取消選取並清空儀表板篩選，避免帶著舊的狀態進到別的儀表板。
   navigate: (view) =>
@@ -76,4 +81,6 @@ export const useUiStore = create<UiState>()((set, get) => ({
   setExpandDatasetId: (expandDatasetId) => set({ expandDatasetId }),
   setPanelWidth: (panel, width) =>
     set((s) => ({ panelWidths: { ...s.panelWidths, [panel]: width } })),
+  setPanelCollapsed: (panel, collapsed) =>
+    set((s) => ({ collapsedPanels: { ...s.collapsedPanels, [panel]: collapsed } })),
 }));

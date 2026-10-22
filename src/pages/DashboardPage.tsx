@@ -10,11 +10,13 @@
 // 響應式（ADR 0009）：編輯模式需要寬度 1200px 以上（lg），更窄時「編輯」按鈕停用，編輯中變窄就自動回到
 // 檢視模式（未儲存的變更仍保留）。md 以下，標題列換行，「切換資料來源」「匯出 JSON」收進「更多」選單。
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { useContainerWidth } from 'react-grid-layout';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
+import ButtonBase from '@mui/material/ButtonBase';
 import Button from '@mui/material/Button';
 import Chip from '@mui/material/Chip';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -45,6 +47,7 @@ import { useRowsStore } from '../store/rowsStore.ts';
 import { DEFAULT_PANEL_WIDTHS, useUiStore } from '../store/uiStore.ts';
 import type { Dashboard, Dataset, DatasetRows } from '../types/index.ts';
 import { buildExport } from '../utils/dashboardTransfer.ts';
+import { PANEL_MIN, RESIZER_WIDTH, fitPanels, maxPanelWidth } from '../utils/panelLayout.ts';
 
 export function DashboardPage() {
   const navigate = useUiStore((s) => s.navigate);
@@ -252,13 +255,10 @@ const sidePanel = {
   overflowY: 'auto',
 } as const;
 
-// 編輯模式欄位之間的把手寬度（同時是間距）、面板的最小寬度，以及儀表板區域至少保留的寬度。
-const RESIZER_WIDTH = 16;
-const PANEL_MIN = { fields: 180, editor: 280 };
-const GRID_MIN_WIDTH = 400;
-
 // 編輯模式的工作區。DndProvider 只包在這裡，因為只有編輯模式需要拖放欄位。
-// 欄位清單與元件設定的寬度可以用中間的把手調整（PanelResizer），寬度記在 uiStore。
+// 欄位清單與元件設定的寬度可以用中間的把手調整（PanelResizer），也可以向右收合成窄條，
+// 讓儀表板區域變大（格線寬度不到 900px 時元件不能移動，見 ADR 0009）。寬度與收合狀態記在 uiStore，
+// 實際顯示的寬度再依工作區目前的寬度限制（utils/panelLayout.ts），縮小視窗時不會把儀表板擠到零寬。
 function EditWorkspace({
   dashboard,
   dataset,
@@ -272,10 +272,11 @@ function EditWorkspace({
   const selectedWidget = dashboard.widgets.find((w) => w.id === selectedWidgetId);
   const panelWidths = useUiStore((s) => s.panelWidths);
   const setPanelWidth = useUiStore((s) => s.setPanelWidth);
-  const workspaceRef = useRef<HTMLDivElement>(null);
-  // 一個面板最多能多寬：容器扣掉另一個面板、兩個把手，再保留儀表板區域的最小寬度。
-  const maxPanelWidth = (other: number) =>
-    (workspaceRef.current?.clientWidth ?? 0) - other - 2 * RESIZER_WIDTH - GRID_MIN_WIDTH;
+  const collapsed = useUiStore((s) => s.collapsedPanels);
+  const setPanelCollapsed = useUiStore((s) => s.setPanelCollapsed);
+  // 工作區的寬度（跟著視窗與側邊欄變化）；量到之前先不限制。
+  const { width: workspaceWidth, containerRef, mounted } = useContainerWidth();
+  const widths = fitPanels(panelWidths, collapsed, mounted ? workspaceWidth : Infinity);
   // 欄位清單上勾選的欄位（ADR 0010 §7 ④）：只能來自同一張資料表，勾了別張表的欄位就重新開始。
   const [checked, setChecked] = useState<CheckedFields | null>(null);
   // 勾選時右側面板顯示推薦；在格線上點選另一個元件時清除勾選，右側面板改回元件設定。
@@ -285,6 +286,8 @@ function EditWorkspace({
     if (selectedWidgetId) setChecked(null);
   }
   const toggleField = (table: string, header: string) => {
+    // 推薦卡片顯示在元件設定的位置，收合著就看不到。
+    if (collapsed.editor) setPanelCollapsed('editor', false);
     if (checked?.table !== table) {
       setChecked({ table, headers: [header] });
       return;
@@ -298,12 +301,12 @@ function EditWorkspace({
   return (
     <DndProvider backend={HTML5Backend}>
       <Box
-        ref={workspaceRef}
+        ref={containerRef}
         sx={{
           display: 'grid',
           rowGap: 2,
           // 欄位清單緊貼在元件設定旁邊，拖拉距離最短。兩個窄欄是調整寬度的把手，同時當作間距。
-          gridTemplateColumns: `minmax(0, 1fr) ${RESIZER_WIDTH}px ${panelWidths.fields}px ${RESIZER_WIDTH}px ${panelWidths.editor}px`,
+          gridTemplateColumns: `minmax(0, 1fr) ${RESIZER_WIDTH}px ${widths.fields}px ${RESIZER_WIDTH}px ${widths.editor}px`,
           alignItems: 'start',
         }}
       >
@@ -322,60 +325,113 @@ function EditWorkspace({
             <DashboardGrid dashboard={dashboard} dataset={dataset} rows={rows} />
           )}
         </Stack>
-        <PanelResizer
-          label='調整欄位清單寬度'
-          width={panelWidths.fields}
-          min={PANEL_MIN.fields}
-          defaultWidth={DEFAULT_PANEL_WIDTHS.fields}
-          maxWidth={() => maxPanelWidth(panelWidths.editor)}
-          onChange={(width) => setPanelWidth('fields', width)}
-        />
-        <Box sx={sidePanel}>
-          <FieldPanel
-            dataset={dataset}
-            rows={rows}
-            selectedWidget={selectedWidget}
-            checked={checked}
-            onToggle={toggleField}
+        {collapsed.fields ? (
+          <Box />
+        ) : (
+          <PanelResizer
+            label='調整欄位清單寬度'
+            width={widths.fields}
+            min={PANEL_MIN.fields}
+            defaultWidth={DEFAULT_PANEL_WIDTHS.fields}
+            maxWidth={() => maxPanelWidth(workspaceWidth, widths.editor)}
+            onChange={(width) => setPanelWidth('fields', width)}
+            collapseLabel='收合欄位清單'
+            onCollapse={() => setPanelCollapsed('fields', true)}
           />
-        </Box>
-        <PanelResizer
-          label='調整元件設定寬度'
-          width={panelWidths.editor}
-          min={PANEL_MIN.editor}
-          defaultWidth={DEFAULT_PANEL_WIDTHS.editor}
-          maxWidth={() => maxPanelWidth(panelWidths.fields)}
-          onChange={(width) => setPanelWidth('editor', width)}
-        />
-        <Box sx={sidePanel}>
-          {checked ? (
-            <RecommendPanel
-              dashboard={dashboard}
+        )}
+        {collapsed.fields ? (
+          <CollapsedPanel label='欄位清單' onExpand={() => setPanelCollapsed('fields', false)} />
+        ) : (
+          <Box sx={sidePanel}>
+            <FieldPanel
               dataset={dataset}
               rows={rows}
+              selectedWidget={selectedWidget}
               checked={checked}
-              onClear={() => setChecked(null)}
+              onToggle={toggleField}
             />
-          ) : selectedWidget ? (
-            <WidgetEditor
-              key={selectedWidget.id}
-              dashboard={dashboard}
-              widget={selectedWidget}
-              dataset={dataset}
-              rows={rows}
-            />
-          ) : (
-            <Paper variant='outlined' sx={{ p: 2 }}>
-              <Typography variant='body2' color='text.secondary'>
-                點選一個元件來設定欄位與樣式，或用「＋
-                新增元件」加入新的元件。也可以在欄位清單點選幾個欄位，看推薦的圖表。
-                拖動元件標題可以移動位置，拖動右下角可以調整大小。
-              </Typography>
-            </Paper>
-          )}
-        </Box>
+          </Box>
+        )}
+        {collapsed.editor ? (
+          <Box />
+        ) : (
+          <PanelResizer
+            label='調整元件設定寬度'
+            width={widths.editor}
+            min={PANEL_MIN.editor}
+            defaultWidth={DEFAULT_PANEL_WIDTHS.editor}
+            maxWidth={() => maxPanelWidth(workspaceWidth, widths.fields)}
+            onChange={(width) => setPanelWidth('editor', width)}
+            collapseLabel='收合元件設定'
+            onCollapse={() => setPanelCollapsed('editor', true)}
+          />
+        )}
+        {collapsed.editor ? (
+          <CollapsedPanel label='元件設定' onExpand={() => setPanelCollapsed('editor', false)} />
+        ) : (
+          <Box sx={sidePanel}>
+            {checked ? (
+              <RecommendPanel
+                dashboard={dashboard}
+                dataset={dataset}
+                rows={rows}
+                checked={checked}
+                onClear={() => setChecked(null)}
+              />
+            ) : selectedWidget ? (
+              <WidgetEditor
+                key={selectedWidget.id}
+                dashboard={dashboard}
+                widget={selectedWidget}
+                dataset={dataset}
+                rows={rows}
+              />
+            ) : (
+              <Paper variant='outlined' sx={{ p: 2 }}>
+                <Typography variant='body2' color='text.secondary'>
+                  點選一個元件來設定欄位與樣式，或用「＋
+                  新增元件」加入新的元件。也可以在欄位清單點選幾個欄位，看推薦的圖表。
+                  拖動元件標題可以移動位置，拖動右下角可以調整大小。
+                </Typography>
+              </Paper>
+            )}
+          </Box>
+        )}
       </Box>
     </DndProvider>
+  );
+}
+
+// 向右收合後的面板：一條直書標題的窄條，點一下展開。收合時面板內容卸載，
+// 元件設定裡還沒寫回的輸入會在卸載時寫回（CommitTextField）。
+function CollapsedPanel({ label, onExpand }: { label: string; onExpand: () => void }) {
+  return (
+    <ButtonBase
+      onClick={onExpand}
+      aria-label={`展開${label}`}
+      title={`展開${label}`}
+      sx={{
+        position: 'sticky',
+        top: 88,
+        height: 'calc(100svh - 104px)',
+        width: '100%',
+        flexDirection: 'column',
+        justifyContent: 'flex-start',
+        gap: 1,
+        pt: 1,
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        bgcolor: 'background.paper',
+        color: 'text.secondary',
+        '&:hover, &.Mui-focusVisible': { color: 'text.primary', borderColor: 'primary.main' },
+      }}
+    >
+      <span aria-hidden='true'>«</span>
+      <Box component='span' sx={{ writingMode: 'vertical-rl', letterSpacing: 2, fontSize: 14 }}>
+        {label}
+      </Box>
+    </ButtonBase>
   );
 }
 
