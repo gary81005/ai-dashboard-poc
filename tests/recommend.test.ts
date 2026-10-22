@@ -255,6 +255,29 @@ describe('組合對照表', () => {
     expect(result.recommendations.map((r) => r.widget.type)).toEqual(['table']);
   });
 
+  it('11. 點數看實際畫得出來的點，不是識別值的種類', () => {
+    const table: DataTable = {
+      key: 't',
+      sheetName: 't',
+      hidden: false,
+      rowCount: 8,
+      fields: [
+        { header: '姓名', dataType: 'text', role: 'dimension' },
+        { header: '月薪', dataType: 'number', role: 'measure' },
+        { header: '年資', dataType: 'number', role: 'measure' },
+      ],
+    };
+    // 8 個人只有前 2 人兩個數值都有。
+    const rows: Row[] = [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+      姓名: `員工${n}`,
+      月薪: n * 1000,
+      年資: n <= 2 ? n : null,
+    }));
+    const selected = ['姓名', '月薪', '年資'];
+    const result = recommend(table, rows, profileTable(table, rows), selected);
+    expect(result.recommendations.map((r) => r.widget.type)).toEqual(['table']);
+  });
+
   it('13. 其他組合只給表格', async () => {
     expect(types(await monthly(['門市名稱', '年月', '營業額']))).toEqual(['table']);
     expect(types(await monthly(['區域']))).toEqual(['table']);

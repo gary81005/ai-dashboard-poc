@@ -13,13 +13,14 @@ import type {
   DimensionSlot,
   Measure,
   Row,
+  ScatterWidget,
   TableColumn,
   Widget,
 } from '../types/index.ts';
 import type { CategoryLevel, FieldProfile } from './fieldKinds.ts';
 import { toFieldRef } from './fields.ts';
 import { createId } from './ids.ts';
-import { categoryKey } from './query.ts';
+import { categoryKey, queryScatter } from './query.ts';
 import { defaultAgg } from './widgetEditing.ts';
 
 export type Recommendation = {
@@ -45,6 +46,7 @@ const MAX_MEASURES = 4;
 const MAX_FIELDS = 5;
 const TOP_N = 10;
 const MANY_VALUES = 30;
+// 散佈圖至少要有的點數；與 utils/widgetChecks.ts 的警告條件一致。
 const SCATTER_MIN_POINTS = 5;
 // 折線至少要有的時間點；與 utils/widgetChecks.ts 的警告條件一致。
 const TREND_MIN_POINTS = 3;
@@ -114,6 +116,16 @@ function comboOf(builder: Builder, x: Pick, groups: Pick[][], title: string): Wi
     ...right.map((p): ComboMeasure => ({ ...measure(p), mark: 'line', axis: 'right' })),
   ];
   return { ...base(builder, title), type: 'combo', encoding: { x: dim(x), y } };
+}
+
+// 散佈圖實際畫得出來的點數：X、Y 都有數字的列（有明細欄位時是彙總後的明細值）。
+// 用和元件、警告相同的 queryScatter 計算，識別值很多但大多缺數值時也不會誤判。
+function scatterPoints(builder: Builder, widget: ScatterWidget): number {
+  const { x, y, color, detail } = widget.encoding;
+  if (!x || !y) return 0;
+  const ctx = { table: builder.table, rows: [...builder.rows], filters: [] };
+  const result = queryScatter(ctx, x, y, color?.field, detail?.field);
+  return result.series.reduce((sum, s) => sum + s.points.length, 0);
 }
 
 // 依分類彙總後的值是否全為正數（圓餅圖的條件）。
@@ -201,20 +213,13 @@ function chartCandidates(builder: Builder, picks: Pick[]): Candidate[] {
   if (dims.length === 0 && measures.length === 2) {
     if (builder.rows.length > SCATTER_MAX_ROWS) return out;
     const [a, b] = measures;
-    const points = builder.rows.filter(
-      (r) =>
-        typeof r[a.profile.field.header] === 'number' &&
-        typeof r[b.profile.field.header] === 'number',
-    ).length;
-    if (points < SCATTER_MIN_POINTS) return out;
-    out.push({
-      widget: {
-        ...base(builder, `${header(a)} vs ${header(b)}`),
-        type: 'scatter',
-        encoding: { x: measure(a), y: measure(b) },
-      },
-      reason: `每一列一個點，看「${header(a)}」與「${header(b)}」的關係`,
-    });
+    const widget: ScatterWidget = {
+      ...base(builder, `${header(a)} vs ${header(b)}`),
+      type: 'scatter',
+      encoding: { x: measure(a), y: measure(b) },
+    };
+    if (scatterPoints(builder, widget) < SCATTER_MIN_POINTS) return out;
+    out.push({ widget, reason: `每一列一個點，看「${header(a)}」與「${header(b)}」的關係` });
     return out;
   }
 
@@ -422,19 +427,22 @@ function chartCandidates(builder: Builder, picks: Pick[]): Candidate[] {
     // 11. 識別 ＋ 2 個量值（＋ 0～1 個「少」級分類）：散佈圖，明細＝識別、顏色＝分類。
     const color = dims.length === 2 && categories.length === 1 ? categories[0] : undefined;
     const fits = dims.length === 1 || (color !== undefined && color.level === 'few');
-    if (measures.length === 2 && fits && i.profile.distinct >= SCATTER_MIN_POINTS) {
+    if (measures.length === 2 && fits) {
       const [a, b] = measures;
-      out.push({
-        widget: {
-          ...base(builder, `${header(a)} vs ${header(b)}`),
-          type: 'scatter',
-          encoding: {
-            x: measure(a),
-            y: measure(b),
-            detail: dim(i),
-            ...(color && { color: dim(color) }),
-          },
+      const widget: ScatterWidget = {
+        ...base(builder, `${header(a)} vs ${header(b)}`),
+        type: 'scatter',
+        encoding: {
+          x: measure(a),
+          y: measure(b),
+          detail: dim(i),
+          ...(color && { color: dim(color) }),
         },
+      };
+      // 點數看實際畫得出來的點，不是識別值的種類：只有少數人兩個數值都有時不推薦。
+      if (scatterPoints(builder, widget) < SCATTER_MIN_POINTS) return out;
+      out.push({
+        widget,
         reason: color
           ? `每個${header(i)}一個點、依「${header(color)}」上色，看「${header(a)}」與「${header(b)}」的關係`
           : `每個${header(i)}一個點，看「${header(a)}」與「${header(b)}」的關係`,

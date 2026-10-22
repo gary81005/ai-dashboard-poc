@@ -18,6 +18,7 @@ import type {
 import { profilesOf } from './fieldKinds.ts';
 import type { FieldProfile } from './fieldKinds.ts';
 import { resolveField, toFieldRef } from './fields.ts';
+import { isPeriodValue } from './inference.ts';
 import { recommend } from './recommend.ts';
 import { tableKindOf } from './tableKinds.ts';
 import type { TableKind } from './tableKinds.ts';
@@ -53,6 +54,14 @@ type Item = { widget: Widget; size: Size };
 export type MainTableOption = { table: DataTable; kind: TableKind; measures: number };
 
 const isMeasure = (p: FieldProfile) => p.kind.kind === 'measure' || p.kind.kind === 'ratio';
+
+// 以年、球季為單位、值不多的序列時間，當同期比較的分線與儀表板篩選。年月、日期這類以月或日為單位的
+// 時間不算：只有 6 個月的資料時，「年月」值也很少，但拿來分線或篩選都沒有意義。
+function fewPeriodsOf(ts: readonly FieldProfile[]): FieldProfile | undefined {
+  const finerThanYear = (p: FieldProfile) =>
+    p.field.dataType === 'date' || p.field.header === '年月' || p.samples.some(isPeriodValue);
+  return ts.find((p) => p.distinct <= FEW_PERIODS && !finerThanYear(p));
+}
 
 // 可以當主資料表的表：看得到、有資料列、至少有 1 個量值，主檔與參數表除外。
 // 排序：明細表優先，再依量值欄位數、列數由多到少；第一個就是預設的主資料表。
@@ -167,8 +176,8 @@ function compose(ctx: Context): Item[] {
     add(pick(ctx, [c, firstMeasure], ['bar']), SIZES.bar);
   }
 
-  // 5. 同期比較：週期時間 × 值 ≤ 6 種的序列時間 × 第 1 個量值。
-  const fewPeriods = ts.find((p) => p.distinct <= FEW_PERIODS);
+  // 5. 同期比較：週期時間 × 值 ≤ 6 種的序列時間（不含年月）× 第 1 個量值。
+  const fewPeriods = fewPeriodsOf(ts);
   if (tc[0] && fewPeriods) {
     add(pick(ctx, [tc[0], fewPeriods, firstMeasure], ['line']), SIZES.cycle);
   }
@@ -225,12 +234,13 @@ function arrange(items: readonly Item[]): LayoutItem[] {
 
 // ── 儀表板篩選 ────────────────────────────────────────────────────────
 
-// 主資料表裡「少／中」級的分類，同時出現在越多張表的越優先；另外加 1 個值 ≤ 6 種的序列時間。
+// 主資料表裡「少／中」級的分類，同時出現在越多張表的越優先；另外加 1 個值 ≤ 6 種的序列時間
+// （年、球季這類，不含年月）。
 function suggestFilters(dataset: Dataset, fields: Fields): DashboardFilter[] {
   const visible = dataset.tables.filter((t) => !t.hidden);
   const shared = (p: FieldProfile) =>
     visible.filter((t) => resolveField(t, toFieldRef(p.field)) !== undefined).length;
-  const time = fields.ts.find((p) => p.distinct <= FEW_PERIODS);
+  const time = fewPeriodsOf(fields.ts);
   const categories = fields.cs
     .filter(
       (p) => p.kind.kind === 'category' && (p.kind.level === 'few' || p.kind.level === 'some'),

@@ -136,6 +136,33 @@ describe('suggestDashboard', () => {
       expect(layout.map((l) => l.w)).toEqual([12, 12]);
     });
 
+    it('年月值再少也不當篩選', () => {
+      const { filters } = suggestDashboard(datasetOf([table]), rows, 'tbl_fact_t');
+      expect(filters).toEqual([]);
+    });
+
+    it('識別值很多、但兩個數值都有的不到 5 個時不放散佈圖', () => {
+      const people: DataTable = {
+        ...table,
+        rowCount: 8,
+        fields: [
+          field('姓名', { dataType: 'text', role: 'dimension' }),
+          field('月薪'),
+          field('年資'),
+        ],
+      };
+      const peopleRows: DatasetRows = {
+        tbl_fact_t: [1, 2, 3, 4, 5, 6, 7, 8].map((n) => ({
+          姓名: `員工${n}`,
+          月薪: n * 1000,
+          年資: n <= 2 ? n : null,
+        })),
+      };
+      const { widgets } = suggestDashboard(datasetOf([people]), peopleRows, 'tbl_fact_t');
+      expect(widgets.length).toBeGreaterThan(0);
+      expect(widgets.map((w) => w.type)).not.toContain('scatter');
+    });
+
     it('沒有量值、或找不到資料表時是空的建議', () => {
       const empty = { widgets: [], layout: [], filters: [] };
       const dims: DataTable = { ...table, fields: [table.fields[0]] };
