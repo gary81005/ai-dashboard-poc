@@ -34,19 +34,19 @@ export const DATA_TYPE_LABELS: Record<DataType, string> = {
 export const AGG_LABELS: Record<Agg, string> = {
   sum: '加總',
   avg: '平均',
-  count: '計數',
+  count: '筆數',
   min: '最小',
   max: '最大',
 };
 
-// 彙總方式的顯示文字。有分子分母的比率欄位，加總與平均都是加權比率（ADR 0008）。
+// 彙總方式的顯示文字。有分子分母的比率欄位，加總與平均都是加權比率（ADR 0008），畫面上寫成「分子÷分母」。
 export function aggLabel(field: Field | undefined, agg: Agg): string {
-  if (field?.ratioOf && (agg === 'sum' || agg === 'avg')) return '加權比率';
+  if (field?.ratioOf && (agg === 'sum' || agg === 'avg')) return '分子÷分母';
   return AGG_LABELS[agg];
 }
 
 // 圖例與欄名用的標籤：加總與加權比率是預設，所以不另外標示；其他彙總方式加上括號說明。
 export function measureLabel(field: Field, agg: Agg): string {
-  if (agg === 'sum' || aggLabel(field, agg) === '加權比率') return field.header;
+  if (agg === 'sum' || (field.ratioOf && agg === 'avg')) return field.header;
   return `${field.header}（${AGG_LABELS[agg]}）`;
 }

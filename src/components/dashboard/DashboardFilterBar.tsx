@@ -74,7 +74,7 @@ export function DashboardFilterBar({ dashboard, dataset, rows, editing }: Props)
           onDrop={handleDrop}
           label='儀表板篩選'
           hint='套用到所有有這個欄位的元件；選的值只在這次瀏覽有效'
-          placeholder='把維度欄位拖到這裡，例如區域、人員'
+          placeholder='把分類欄位拖到這裡，例如區域、人員'
         >
           {selects}
         </DropZone>

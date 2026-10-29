@@ -70,7 +70,7 @@ export function Shelf({ widget, slot, dataset, onChange }: Props) {
       onDrop={handleDrop}
       label={slot.label}
       hint={slot.hint}
-      placeholder={slot.kind === 'dimension' ? '拖入維度欄位' : '拖入欄位'}
+      placeholder={slot.kind === 'dimension' ? '拖入分類欄位' : '拖入欄位'}
     >
       {entries.map((entry, index) => (
         <SlotChip
@@ -208,10 +208,10 @@ function SlotChip({ entry, slot, isCombo, field, onChange, onDelete }: SlotChipP
       />
       {hasMenu && (
         <Menu anchorEl={anchor} open={anchor !== null} onClose={() => setAnchor(null)}>
-          <ListSubheader>彙總方式</ListSubheader>
+          <ListSubheader>計算方式</ListSubheader>
           {slot.kind === 'columns' && (
             <MenuItem selected={!entry.agg} onClick={() => choose({ agg: undefined })}>
-              不彙總（顯示明細）
+              不計算（逐筆列出）
             </MenuItem>
           )}
           {aggs.map((agg) => (

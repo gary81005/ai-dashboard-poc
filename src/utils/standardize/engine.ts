@@ -177,7 +177,7 @@ const CHECK_COLUMNS: OutputColumn[] = [
     width: 12,
     style: 'formula',
   },
-  { header: '母數', code: 'base_rows', type: '整數', unit: '筆', source: '手動輸入', width: 11 },
+  { header: '總筆數', code: 'base_rows', type: '整數', unit: '筆', source: '手動輸入', width: 11 },
   {
     header: '佔比',
     code: 'affected_pct',
@@ -211,11 +211,11 @@ function checkTable(checks: readonly CheckSpec[], sheets: Map<string, SheetView>
     values.push(
       check.base.reduce((sum, sheet) => {
         const view = sheets.get(sheet);
-        if (!view) throw new Error(`檢核 ${check.id} 的母數引用了不存在的工作表「${sheet}」`);
+        if (!view) throw new Error(`檢核 ${check.id} 的總筆數引用了不存在的工作表「${sheet}」`);
         return sum + view.rows.length;
       }, 0),
     );
-    const [pctFormula, pct] = evaluate(ratio(ref('影響筆數'), ref('母數')), scope);
+    const [pctFormula, pct] = evaluate(ratio(ref('影響筆數'), ref('總筆數')), scope);
     values.push({ formula: pctFormula, result: pct });
     values.push(check.note);
     return values;

@@ -44,7 +44,7 @@ export function FilterShelf({ widget, dataset, rows, onChange }: Props) {
       onDrop={handleDrop}
       label='篩選'
       hint='點欄位選擇要保留的值'
-      placeholder='拖入維度欄位'
+      placeholder='拖入分類欄位'
     >
       {widget.filters.map((filter, index) => (
         <FilterChip

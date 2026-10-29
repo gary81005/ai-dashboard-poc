@@ -133,7 +133,7 @@ export function StandardizeButton({ disabled = false }: { disabled?: boolean }) 
             <Stack spacing={1.5}>
               <DialogContentText>
                 把系統直接匯出的原始 Excel
-                轉成符合結構規範的標準化活頁簿：補齊缺值、轉換型別、拆出維度表與彙總表，
+                轉成符合結構規範的標準化活頁簿：空白補成「未提供」、統一格式、拆出名單與統計表，
                 並列出資料品質問題。原始值不會被修改，問題只會標記、不會自動修補。
               </DialogContentText>
               <Typography variant='body2' color='text.secondary'>

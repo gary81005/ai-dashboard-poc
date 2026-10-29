@@ -376,7 +376,7 @@ describe('CRM 設定', () => {
     ]);
   });
 
-  it('客戶主檔：缺值正規化、屬性是否完整只看真正的空白、名稱重複', () => {
+  it('客戶主檔：缺值補成未提供、屬性是否完整只看真正的空白、名稱重複', () => {
     const [t1, t2, , t4] = records('客戶主檔');
     expect(t1['客戶分類']).toBe('未提供');
     expect(t1['屬性資料是否完整']).toBe(1);
@@ -494,12 +494,12 @@ describe('CRM 設定', () => {
     expect(formula(rows[0]['結案贏單率']).result).toBe(1);
   });
 
-  it('資料品質檢核：影響筆數、母數、佔比', () => {
+  it('資料品質檢核：影響筆數、總筆數、佔比', () => {
     const checks = Object.fromEntries(records('資料品質檢核').map((r) => [r['檢核代碼'], r]));
     const affected = (id: string) => formula(checks[id]['影響筆數']).result;
     expect(affected('DQ01')).toBe(1);
     expect(affected('DQ02')).toBe(3);
-    expect(checks['DQ02']['母數']).toBe(7);
+    expect(checks['DQ02']['總筆數']).toBe(7);
     expect(affected('DQ12')).toBe(1);
     expect(affected('DQ14')).toBe(1);
     expect(formula(checks['DQ15']['影響筆數'])).toEqual({

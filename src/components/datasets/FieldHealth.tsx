@@ -13,9 +13,9 @@ import { updateField, updateFields } from '../../services/datasetService.ts';
 import type { AutoLabeled, HealthKind, HealthSuggestion } from '../../utils/fieldHealth.ts';
 
 const DISMISS_HINTS: Record<HealthKind, string> = {
-  role: '維持量值，不再提醒',
-  flag: '維持量值，不再提醒',
-  ratio: '不是比率：當成一般量值，預設加總、顯示合計，不再提醒',
+  role: '維持數值，不再提醒',
+  flag: '維持數值，不再提醒',
+  ratio: '不是比率：當成一般數值，預設加總、顯示合計，不再提醒',
 };
 
 type Props = { datasetId: string; suggestions: HealthSuggestion[]; autoLabeled: AutoLabeled[] };
@@ -116,7 +116,7 @@ function AutoLabeledNotice({ datasetId, fields }: NoticeProps) {
         </Button>
       }
     >
-      <AlertTitle>已自動套用值標籤：{fields.length} 個 0/1 欄位</AlertTitle>
+      <AlertTitle>已自動套用顯示名稱：{fields.length} 個 0/1 欄位</AlertTitle>
       <Typography variant='body2' sx={{ mb: 0.75 }}>
         圖表與篩選顯示標籤，平均顯示成「是 35%」、加總顯示成「是 120 筆」；資料本身不變。
       </Typography>
@@ -142,7 +142,7 @@ function AutoLabeledNotice({ datasetId, fields }: NoticeProps) {
                 updateField(datasetId, f.tableKey, f.header, { showValueLabels: false })
               }
             >
-              改回原始值
+              改回原本的值
             </Button>
           </Stack>
         ))}

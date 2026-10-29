@@ -77,9 +77,9 @@ export function TableFieldsAccordion({ datasetId, table, summary, rows }: Props)
                 <TableCell>代碼</TableCell>
                 <TableCell>型別</TableCell>
                 <TableCell>單位</TableCell>
-                <TableCell>角色</TableCell>
+                <TableCell>用途</TableCell>
                 <TableCell>比率（不可加總）</TableCell>
-                <TableCell>值標籤</TableCell>
+                <TableCell>顯示名稱</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -105,8 +105,8 @@ export function TableFieldsAccordion({ datasetId, table, summary, rows }: Props)
                         if (role) updateField(datasetId, table.key, field.header, { role });
                       }}
                     >
-                      <ToggleButton value='dimension'>維度</ToggleButton>
-                      <ToggleButton value='measure'>量值</ToggleButton>
+                      <ToggleButton value='dimension'>分類</ToggleButton>
+                      <ToggleButton value='measure'>數值</ToggleButton>
                     </ToggleButtonGroup>
                   </TableCell>
                   <TableCell>
@@ -171,7 +171,7 @@ function ValueLabelsButton({ field, distinct, onOpen }: ValueLabelsButtonProps) 
     distinct === undefined
       ? '資料列載入後才能設定'
       : tooMany
-        ? `有 ${distinct} 種值，超過 ${MAX_LABELED_VALUES} 種的欄位不提供值標籤`
+        ? `有 ${distinct} 種值，超過 ${MAX_LABELED_VALUES} 種的欄位不提供顯示名稱`
         : undefined;
   return (
     <Button
@@ -228,7 +228,7 @@ function RatioOfControl({ field, table, onChange }: RatioOfControlProps) {
     <>
       <Button size='small' onClick={(e) => setAnchor(e.currentTarget)}>
         {field.ratioOf
-          ? `加權：${field.ratioOf.numerator} ÷ ${field.ratioOf.denominator}`
+          ? `分子分母：${field.ratioOf.numerator} ÷ ${field.ratioOf.denominator}`
           : '設定分子分母'}
       </Button>
       <Popover
@@ -239,14 +239,14 @@ function RatioOfControl({ field, table, onChange }: RatioOfControlProps) {
       >
         <Stack spacing={1.5} sx={{ p: 2, maxWidth: 320 }}>
           <Typography variant='body2' color='text.secondary'>
-            分組時改算「分子加總 ÷ 分母加總」，不再是非加權平均。
+            分組時改用「分子加總 ÷ 分母加總」重算，不再把各列的比率直接平均。
           </Typography>
           {fieldSelect('分子', numerator, setNumerator)}
           {fieldSelect('分母', denominator, setDenominator)}
           <Stack direction='row' spacing={1} sx={{ justifyContent: 'flex-end' }}>
             {field.ratioOf && (
               <Button color='inherit' onClick={() => choose(null)}>
-                取消加權
+                取消分子分母
               </Button>
             )}
             <Button

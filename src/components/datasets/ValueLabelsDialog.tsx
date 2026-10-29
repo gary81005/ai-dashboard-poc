@@ -47,14 +47,14 @@ export function ValueLabelsDialog({ field, values, onClose, onSave }: Props) {
 
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth='xs'>
-      <DialogTitle>「{field.header}」的值標籤</DialogTitle>
+      <DialogTitle>「{field.header}」的顯示名稱</DialogTitle>
       <DialogContent>
         <Stack spacing={2}>
           <Typography variant='body2' color='text.secondary'>
-            只改變圖表、篩選和表格上顯示的文字，資料本身、排序與篩選條件都不變。留空的值顯示原始值。
+            只改變圖表、篩選和表格上顯示的文字，資料本身、排序與篩選條件都不變。留空的值顯示原本的值。
           </Typography>
           <FormControlLabel
-            label='顯示值標籤'
+            label='套用顯示名稱'
             control={<Switch checked={enabled} onChange={(_, checked) => setEnabled(checked)} />}
           />
           <Stack spacing={1}>

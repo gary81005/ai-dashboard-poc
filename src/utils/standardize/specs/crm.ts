@@ -54,11 +54,11 @@ function col<R>(
 
 // 資料來源的寫法（欄位定義的「資料來源」欄）。
 const RAW = '原樣匯入';
-const NORMALIZED = '正規化';
-const DERIVED = '衍生';
-const SPLIT = '衍生（拆解原始字串）';
-const TO_DATE = '正規化（文字→日期）';
-const TO_NUMBER = '正規化（文字→數字）';
+const NORMALIZED = '統一格式';
+const DERIVED = '由其他欄位算出';
+const SPLIT = '由其他欄位算出（拆解原始字串）';
+const TO_DATE = '統一格式（文字→日期）';
+const TO_NUMBER = '統一格式（文字→數字）';
 const YES = '1=是';
 
 // 2025 年組織調整前的名稱帶這個字尾，例如「华东区(2025旧版)」：保留原始值，另開旗標欄。
@@ -157,7 +157,7 @@ export const spec: StandardizeSpec = {
     ],
     [
       '本檔用途',
-      '★ 原始資料一筆未刪、一值未改：所有調整僅限型別正規化與新增衍生欄位，原始值均保留於「原始值」欄。',
+      '★ 原始資料一筆未刪、一值未改：所有調整僅限統一格式與新增計算出來的欄位，原始值均保留於「原始值」欄。',
     ],
     [
       '本檔用途',
@@ -174,21 +174,24 @@ export const spec: StandardizeSpec = {
     [
       '結構規範',
       (ctx) =>
-        `★ 拜訪紀錄 ${tenThousands(ctx.raw['拜訪']?.length ?? 0)}列、客戶主檔 ${tenThousands(ctx.raw['客戶']?.length ?? 0)}列，衍生欄位一律於 ETL 階段算好存為數值，不放 Excel 公式。`,
+        `★ 拜訪紀錄 ${tenThousands(ctx.raw['拜訪']?.length ?? 0)}列、客戶主檔 ${tenThousands(ctx.raw['客戶']?.length ?? 0)}列，計算出來的欄位一律在轉換時算好存為數值，不放 Excel 公式。`,
     ],
     [
       '結構規範',
-      '★ 公式只出現在彙總層（業務員月彙總、月度彙總）與檢核層，開檔不會因十萬條公式而卡住。',
+      '★ 公式只出現在統計表（業務員月彙總、月度彙總）與資料品質檢核，開檔不會因十萬條公式而卡住。',
     ],
     [
-      '星狀結構',
-      '維度表：客戶主檔、業務員主檔、組織主檔、事業部主檔、廠牌主檔、產品主檔、日曆參數。',
+      '資料表關係',
+      '名單（每列一個對象，供其他表用代號查名稱）：客戶主檔、業務員主檔、組織主檔、事業部主檔、廠牌主檔、產品主檔、日曆參數。',
     ],
-    ['星狀結構', '事實表：拜訪紀錄（主鍵 拜訪編號）、商機（主鍵 商機編號）。'],
     [
-      '星狀結構',
+      '資料表關係',
+      '逐筆紀錄（每列一筆業務活動）：拜訪紀錄（以拜訪編號區分每一筆）、商機（以商機編號區分每一筆）。',
+    ],
+    [
+      '資料表關係',
       (ctx) =>
-        `★ 事實表已移除冗餘的「客戶名稱」「業務姓名」，改以代號 join 維度表；原檔有 ${nameMismatches(ctx)} 筆拜訪的客戶名稱與主檔不一致，正是冗餘造成的。`,
+        `★ 逐筆紀錄已移除重複存放的「客戶名稱」「業務姓名」，改用代號到名單查名稱；原檔有 ${nameMismatches(ctx)} 筆拜訪的客戶名稱與客戶主檔不一致，正是同一份資料存在兩處造成的。`,
     ],
     [
       '欄位更名',
@@ -196,21 +199,21 @@ export const spec: StandardizeSpec = {
     ],
     [
       '欄位更名',
-      '★ 已統一更名為 事業部 / 大區，兩張事實表的「大區」現在指同一件事，可直接合併分析。',
+      '★ 已統一更名為 事業部 / 大區，兩張逐筆紀錄的「大區」現在指同一件事，可直接合併分析。',
     ],
     [
       '欄位更名',
       '大區原始字串同時塞了大區名稱與涵蓋省份（如「中原区 河南陕西安徽」），已在組織主檔拆為兩欄。',
     ],
-    ['型別正規化', '成單機率由文字「50%」轉為小數 0.5；報價金額、欲購買數量由文字轉為數字。'],
-    ['型別正規化', '拜訪日期、預計結束日期由文字轉為真實日期，並衍生 年／月／年月／季別。'],
-    ['型別正規化', '空白與「-」一律正規化為「未提供」，不留空值，避免匯入時產生 NaN。'],
+    ['統一格式', '成單機率由文字「50%」轉為小數 0.5；報價金額、欲購買數量由文字轉為數字。'],
+    ['統一格式', '拜訪日期、預計結束日期由文字轉為真實日期，並另外算出 年／月／年月／季別。'],
+    ['統一格式', '空白與「-」一律改為「未提供」，不留空白，避免匯入後出現無法計算的空格。'],
     [
-      '型別正規化',
+      '統一格式',
       '階段狀態「0% - 丢单」拆為 階段分類（贏單/丟單/進行中）與 是否已結案／是否贏單 旗標。',
     ],
-    ['型別正規化', '輸單原因「延迟采购 - 客户因素」拆為 大類（客户因素）與 細項（延迟采购）。'],
-    ['型別正規化', '產品與成交商品的「[廠牌]」前綴已抽出為廠牌代碼；不斷行空白（\\xa0）已清除。'],
+    ['統一格式', '輸單原因「延迟采购 - 客户因素」拆為 大類（客户因素）與 細項（延迟采购）。'],
+    ['統一格式', '產品與成交商品的「[廠牌]」前綴已抽出為廠牌代碼；不斷行空白（\\xa0）已清除。'],
     [
       '已知限制',
       (ctx) => {
@@ -235,12 +238,15 @@ export const spec: StandardizeSpec = {
       '已知限制',
       '原檔無實際成交日期與成交金額，只有報價金額與預計結束日期，故無法計算真實營收，僅能做商機管道分析。',
     ],
-    ['顏色規則', '藍色字＝原始或 ETL 產生的資料值；黑色字＝同表公式；綠色字＝跨工作表連結。'],
+    ['顏色規則', '藍色字＝原始或轉換時產生的資料值；黑色字＝同表公式；綠色字＝跨工作表連結。'],
     [
       '後續建議',
-      '若要接自動化，建議由 CRM API 或資料庫直接取數，本檔的欄位代碼與表結構可直接作為目標 schema。',
+      '若要接自動化，建議由 CRM API 或資料庫直接取數，本檔的欄位代碼與表結構可直接作為目標資料結構。',
     ],
-    ['後續建議', '涉及商品的多品項字串建議在來源端改為一對多明細，否則產品別分析永遠會有誤差。'],
+    [
+      '後續建議',
+      '一欄塞多個商品的字串，建議在來源端改成一個商品一列，否則產品別分析永遠會有誤差。',
+    ],
   ],
 
   tables: [
@@ -281,7 +287,7 @@ export const spec: StandardizeSpec = {
           '客戶類型',
           'customer_type',
           '文字',
-          { source: '正規化（空白與「-」→未提供）', width: 12 },
+          { source: '統一格式（空白與「-」→未提供）', width: 12 },
           (r) => text(r['客戶類型']),
         ),
         col('客戶分類', 'customer_class', '文字', { source: NORMALIZED, width: 14 }, (r) =>
@@ -337,7 +343,7 @@ export const spec: StandardizeSpec = {
           '業務姓名',
           'rep_name',
           '文字',
-          { source: '正規化（移除「(2025旧版)」字尾）', width: 16 },
+          { source: '統一格式（移除「(2025旧版)」字尾）', width: 16 },
           (e) => repNames(e)[0] ?? MISSING,
         ),
         col('其他出現過的姓名', 'rep_name_alt', '文字', { source: DERIVED, width: 22 }, (e) =>
@@ -383,7 +389,7 @@ export const spec: StandardizeSpec = {
           '大區原始值',
           'region_raw',
           '文字',
-          { unit: '作為 join 鍵', source: RAW, width: 24 },
+          { unit: '其他表用這欄對應', source: RAW, width: 24 },
           (e) => e.key,
         ),
         col(
@@ -417,7 +423,7 @@ export const spec: StandardizeSpec = {
           '事業部原始值',
           'bu_raw',
           '文字',
-          { unit: '作為 join 鍵', source: RAW, width: 26 },
+          { unit: '其他表用這欄對應', source: RAW, width: 26 },
           (e) => e.key,
         ),
         col('事業部名稱', 'bu_name', '文字', { source: DERIVED, width: 20 }, (e) =>
@@ -463,21 +469,21 @@ export const spec: StandardizeSpec = {
           '產品原始值',
           'product_raw',
           '文字',
-          { unit: '作為 join 鍵', source: RAW, width: 34 },
+          { unit: '其他表用這欄對應', source: RAW, width: 34 },
           (e) => e.key,
         ),
         col(
           '產品名稱',
           'product_name',
           '文字',
-          { source: '衍生（移除 [廠牌] 前綴）', width: 30 },
+          { source: '由其他欄位算出（移除 [廠牌] 前綴）', width: 30 },
           (e) => bracketPrefix(e.key).rest,
         ),
         col(
           '廠牌代碼',
           'brand_code',
           '文字',
-          { source: '衍生（取自 [廠牌] 前綴）', width: 12 },
+          { source: '由其他欄位算出（取自 [廠牌] 前綴）', width: 12 },
           (e) => brandOf(e.key),
         ),
         col(
@@ -498,7 +504,7 @@ export const spec: StandardizeSpec = {
       table: 'tbl_fact_visit',
       rows: sheetRows('拜訪'),
       columns: [
-        col('拜訪編號', 'visit_id', '文字', { unit: '主鍵', source: RAW, width: 11 }, (r) =>
+        col('拜訪編號', 'visit_id', '文字', { unit: '每筆不重複', source: RAW, width: 11 }, (r) =>
           keep(r['拜訪編號']),
         ),
         col('拜訪日期', 'visit_date', '日期', { source: TO_DATE, width: 12 }, (r) =>
@@ -531,7 +537,7 @@ export const spec: StandardizeSpec = {
           '商機編號',
           'opportunity_id',
           '文字',
-          { source: '正規化（空白→未提供）', width: 18 },
+          { source: '統一格式（空白→未提供）', width: 18 },
           (r) => text(r['商機編號']),
         ),
         col(
@@ -549,7 +555,7 @@ export const spec: StandardizeSpec = {
           '客戶編號',
           'customer_id',
           '文字',
-          { unit: 'join 客戶主檔', source: RAW, width: 13 },
+          { unit: '對應 客戶主檔', source: RAW, width: 13 },
           (r) => keep(r['客戶編號']),
         ),
         // 原檔拜訪表的「大區」其實是事業部、「地區」才是大區，更名後兩張事實表的「大區」意思一致。
@@ -585,7 +591,7 @@ export const spec: StandardizeSpec = {
           '業務員編',
           'rep_id',
           '文字',
-          { unit: 'join 業務員主檔', source: RAW, width: 12 },
+          { unit: '對應 業務員主檔', source: RAW, width: 12 },
           (r) => keep(r['業務員編']),
         ),
         col('銷售拜訪類型', 'sales_visit_type', '文字', { source: RAW, width: 24 }, (r) =>
@@ -595,7 +601,7 @@ export const spec: StandardizeSpec = {
           '涉及商品',
           'product_raw',
           '文字',
-          { unit: 'join 產品主檔', source: RAW, width: 22 },
+          { unit: '對應 產品主檔', source: RAW, width: 22 },
           (r) => productKey(r['涉及商品'] ?? null) ?? MISSING,
         ),
         col(
@@ -620,8 +626,12 @@ export const spec: StandardizeSpec = {
       table: 'tbl_fact_opportunity',
       rows: sheetRows('商機'),
       columns: [
-        col('商機編號', 'opportunity_id', '文字', { unit: '主鍵', source: RAW, width: 17 }, (r) =>
-          keep(r['商機編號']),
+        col(
+          '商機編號',
+          'opportunity_id',
+          '文字',
+          { unit: '每筆不重複', source: RAW, width: 17 },
+          (r) => keep(r['商機編號']),
         ),
         col('商機編號前綴', 'opp_id_prefix', '文字', { source: DERIVED, width: 14 }, (r) =>
           leadingNonDigits(String(r['商機編號'] ?? '')),
@@ -630,21 +640,21 @@ export const spec: StandardizeSpec = {
           '客戶編號',
           'customer_id',
           '文字',
-          { unit: 'join 客戶主檔', source: RAW, width: 13 },
+          { unit: '對應 客戶主檔', source: RAW, width: 13 },
           (r) => keep(r['客戶編號']),
         ),
         col(
           '業務員編',
           'rep_id',
           '文字',
-          { unit: 'join 業務員主檔', source: RAW, width: 12 },
+          { unit: '對應 業務員主檔', source: RAW, width: 12 },
           (r) => keep(r['業務員編']),
         ),
         col(
           '大區',
           'region_raw',
           '文字',
-          { unit: 'join 組織主檔', source: NORMALIZED, width: 22 },
+          { unit: '對應 組織主檔', source: NORMALIZED, width: 22 },
           (r) => text(r['大區']),
         ),
         col(
@@ -668,7 +678,7 @@ export const spec: StandardizeSpec = {
           '成單機率',
           'win_probability',
           '百分比',
-          { unit: '小數', source: '正規化（「50%」文字→0.5）', width: 11 },
+          { unit: '小數', source: '統一格式（「50%」文字→0.5）', width: 11 },
           (r) => toRatio(r['成單機率'] ?? null),
         ),
         col('階段狀態原始值', 'stage_raw', '文字', { source: NORMALIZED, width: 20 }, (r) =>
@@ -700,14 +710,14 @@ export const spec: StandardizeSpec = {
           '欲購買廠牌',
           'brand_code',
           '文字',
-          { unit: 'join 廠牌主檔', source: NORMALIZED, width: 13 },
+          { unit: '對應 廠牌主檔', source: NORMALIZED, width: 13 },
           (r) => text(r['欲購買廠牌']),
         ),
         col(
           '欲購買商品',
           'product_raw',
           '文字',
-          { unit: 'join 產品主檔', source: RAW, width: 20 },
+          { unit: '對應 產品主檔', source: RAW, width: 20 },
           (r) => productKey(r['欲購買商品'] ?? null) ?? MISSING,
         ),
         col('欲購買數量', 'qty', '整數', { unit: '台', source: TO_NUMBER, width: 12 }, (r) =>
@@ -717,7 +727,14 @@ export const spec: StandardizeSpec = {
           toDate(r['預計結束日期'] ?? null),
         ),
         ...dateColumns('預計結束日期', [
-          ['預計成單年', 'year', 'year', 12, undefined, '衍生（原檔另有同名欄，與日期一致）'],
+          [
+            '預計成單年',
+            'year',
+            'year',
+            12,
+            undefined,
+            '由其他欄位算出（原檔另有同名欄，與日期一致）',
+          ],
           ['預計成單月', 'month', 'month', 12, '1-12'],
           ['年月', 'period', 'period', 11, 'YYYY-MM'],
         ]),
@@ -729,14 +746,14 @@ export const spec: StandardizeSpec = {
           '預算範圍',
           'budget_range',
           '文字',
-          { source: '正規化（「0」→未填）', width: 12 },
+          { source: '統一格式（「0」→未填）', width: 12 },
           (r) => text(r['預算範圍'], { replace: { '0': '未填' } }),
         ),
         col(
           '成交商品',
           'deal_product_raw',
           '文字',
-          { unit: 'join 產品主檔', source: NORMALIZED, width: 26 },
+          { unit: '對應 產品主檔', source: NORMALIZED, width: 26 },
           (r) => productKey(r['成交商品'] ?? null) ?? MISSING,
         ),
         col('成交商品廠牌', 'deal_brand', '文字', { source: DERIVED, width: 14 }, (r) =>
@@ -1051,7 +1068,7 @@ export const spec: StandardizeSpec = {
       name: '預算範圍填「0」但報價金額大於零',
       affected: countIfs('商機', ['預算範圍', '未填'], ['報價金額', gt(0)]),
       base: ['商機'],
-      note: '預算範圍的「0」實為未填而非零預算，已正規化為「未填」。建議改為下拉選單並禁止空值。',
+      note: '預算範圍的「0」實為未填而非零預算，已改為「未填」。建議改為下拉選單並禁止空值。',
     },
     {
       id: 'DQ09',
@@ -1075,7 +1092,7 @@ export const spec: StandardizeSpec = {
       name: '涉及商品欄一格內包含多個品項',
       affected: countIfs('拜訪紀錄', ['涉及商品是否多品項', 1]),
       base: ['拜訪紀錄'],
-      note: '以「/」分隔多個產品，無法直接依產品彙總。建議改為一筆拜訪對多筆產品的明細表。',
+      note: '以「/」分隔多個產品，無法直接依產品統計。建議改為一筆拜訪對多筆產品的明細表。',
     },
     {
       id: 'DQ12',
@@ -1086,7 +1103,7 @@ export const spec: StandardizeSpec = {
         countIfs('商機', ['成交商品', MISSING]),
       ),
       base: ['商機'],
-      note: '有成交商品但廠牌標記為 null，廠牌維度會出現缺口。',
+      note: '有成交商品但廠牌標記為 null，依廠牌分析時會出現缺口。',
     },
     {
       id: 'DQ13',
@@ -1121,7 +1138,7 @@ export const spec: StandardizeSpec = {
         ],
       },
       base: ['客戶主檔'],
-      note: '休眠客戶佔主檔多數，建議匯出時加上「近 N 年有往來」篩選以縮小檔案。',
+      note: '休眠客戶佔客戶主檔多數，建議匯出時加上「近 N 年有往來」篩選以縮小檔案。',
     },
   ],
 };

@@ -30,7 +30,7 @@ export const WIDGET_TYPE_GUIDES: Record<WidgetType, { purpose: string; needs: st
   radar: { purpose: '比較多個項目的特性', needs: '3～12 種分類 ＋ 數值' },
   gauge: { purpose: '一個比率落在範圍的哪裡', needs: '1 個比率' },
   kpi: { purpose: '一個重點數字', needs: '1 個數值' },
-  table: { purpose: '列出明細或分組彙總', needs: '任意欄位' },
+  table: { purpose: '逐筆列出或分組統計', needs: '任意欄位' },
   text: { purpose: '說明與註記', needs: '不需要欄位' },
 };
 
@@ -54,7 +54,7 @@ export type SlotDef = {
 const cartesian: SlotDef[] = [
   { key: 'x', label: 'X 軸', kind: 'dimension', required: '時間或分類' },
   { key: 'y', label: 'Y 軸數值', kind: 'measures', required: '數值' },
-  { key: 'group', label: '分組（顏色）', kind: 'dimension', hint: '每個值各畫一個系列' },
+  { key: 'group', label: '分組（顏色）', kind: 'dimension', hint: '每個值各畫一條線或一組長條' },
 ];
 
 export const WIDGET_SLOTS: Record<WidgetType, SlotDef[]> = {
@@ -95,7 +95,7 @@ export const WIDGET_SLOTS: Record<WidgetType, SlotDef[]> = {
       key: 'columns',
       label: '欄位',
       kind: 'columns',
-      hint: '全部不彙總時顯示明細；有彙總時依其他欄位分組',
+      hint: '都不計算時逐筆列出；有計算時依其他欄位分組',
       required: '要列出的',
     },
   ],

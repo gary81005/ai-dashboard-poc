@@ -79,7 +79,7 @@ export function FieldPanel({ dataset, rows, selectedWidget, checked, onToggle }:
         欄位清單
       </Typography>
       <Typography variant='caption' color='text.secondary' component='p' sx={{ mb: 1 }}>
-        把欄位拖到右側元件設定的槽位上，或點選幾個欄位看推薦的圖表；滑鼠移到欄位上可以看說明
+        把欄位拖到右側元件設定的放置區，或點選幾個欄位看推薦的圖表；滑鼠移到欄位上可以看說明
       </Typography>
       {suggestionCount > 0 && (
         <Alert
@@ -98,7 +98,7 @@ export function FieldPanel({ dataset, rows, selectedWidget, checked, onToggle }:
             </Button>
           }
         >
-          這個資料集有 {suggestionCount} 項欄位建議：有些欄位的角色或比率標記可能不對
+          這個資料集有 {suggestionCount} 項欄位建議：有些欄位的用途或比率標記可能不對
         </Alert>
       )}
       <TextField
@@ -269,22 +269,22 @@ function kindText(profile: FieldProfile): string {
   switch (kind.kind) {
     case 'time':
       return kind.time === 'sequence'
-        ? '時間（序列），適合當趨勢的 X 軸'
-        : '時間（週期），適合同期比較';
+        ? '時間（連續，例如 2026-01、2026-02），適合當趨勢的 X 軸'
+        : '時間（重複，例如 1～12 月、星期），適合同期比較';
     case 'category':
       return kind.flag
-        ? '0/1 旗標，可當「是／否」分類'
+        ? '是／否欄位（0/1），可當分類'
         : `分類（${LEVEL_LABELS[kind.level]}，${distinct} 種）`;
     case 'identifier':
-      return `識別（${distinct} 種），適合排行、明細、散佈圖的點`;
+      return `代號／名稱（${distinct} 種，每筆幾乎不同），適合排行、明細、散佈圖的點`;
     case 'measure':
-      return '可加總的量值';
+      return '可加總的數值';
     case 'ratio':
       return kind.ratio === 'weighted'
-        ? '比率（加權）'
+        ? '比率（用分子分母重算）'
         : kind.ratio === 'unweighted'
-          ? '比率（非加權）'
-          : '比率（推測，尚未標記）';
+          ? '比率（直接平均）'
+          : '比率（系統猜的，還沒確認）';
   }
 }
 
@@ -292,16 +292,16 @@ function kindText(profile: FieldProfile): string {
 function formulaText(profile: FieldProfile): string | undefined {
   const { field, kind } = profile;
   if (field.ratioOf) {
-    return `${field.ratioOf.numerator} ÷ ${field.ratioOf.denominator}，分組時加權計算`;
+    return `${field.ratioOf.numerator} ÷ ${field.ratioOf.denominator}，分組時用「分子加總 ÷ 分母加總」重算`;
   }
   if (kind.kind === 'ratio' && kind.ratio === 'unweighted') {
-    return '合併多列時是非加權平均，只能參考；可到資料集頁指定分子分母';
+    return '合併多列時是直接平均，只能參考；可到資料集頁指定分子分母';
   }
   if (kind.kind === 'ratio' && kind.ratio === 'inferred') {
     return '標頭看起來像比率，預設用平均；可到資料集頁正式標記，不是比率的話在欄位健檢忽略';
   }
   if (kind.kind === 'category' && kind.flag) {
-    return '放進數值槽位時加總，代表符合的筆數';
+    return '放進數值放置區時加總，代表符合的筆數';
   }
   return undefined;
 }

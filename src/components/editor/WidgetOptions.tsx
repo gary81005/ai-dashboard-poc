@@ -83,7 +83,7 @@ export function WidgetOptions({ widget, table, onChange }: Props) {
   const rawToggle =
     widget.rawValues || (table && usesValueLabels(widget, table)) ? (
       <FormControlLabel
-        label='顯示原始值（不套用值標籤）'
+        label='顯示原本的值（不換成顯示名稱）'
         control={
           <Switch
             size='small'

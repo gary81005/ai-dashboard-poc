@@ -155,8 +155,8 @@ export type FieldGroup = 'time' | 'category' | 'identifier' | 'measure' | 'ratio
 export const GROUP_LABELS: Record<FieldGroup, string> = {
   time: '時間',
   category: '分類',
-  identifier: '識別',
-  measure: '量值',
+  identifier: '代號／名稱',
+  measure: '數值',
   ratio: '比率',
 };
 

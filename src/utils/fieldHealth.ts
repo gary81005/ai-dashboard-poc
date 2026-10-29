@@ -40,9 +40,9 @@ function overridden(field: Field, key: 'role' | 'ratio'): boolean {
 
 function roleMessage(field: Field): string {
   if (SEQUENCE_HEADERS.has(field.header) || CYCLE_HEADERS.has(field.header)) {
-    return '是時間欄位，建議改成維度：才能當趨勢的 X 軸或篩選，也不會被加總';
+    return '是時間欄位，建議改成分類：才能當趨勢的 X 軸或篩選，也不會被加總';
   }
-  return '依目前的判斷規則應該是維度，建議改成維度';
+  return '依目前的判斷規則應該是分類，建議改成分類';
 }
 
 function suggestionFor(
@@ -57,7 +57,7 @@ function suggestionFor(
       return {
         kind: 'flag',
         message:
-          '是 0/1 旗標，建議改成維度：可以用來分組或篩選；放進數值槽位時仍會加總，代表符合的筆數',
+          '是「是／否」欄位（0/1），建議改成分類：可以用來分組或篩選；放進數值放置區時仍會加總，代表符合的筆數',
         patch: { role: 'dimension' },
       };
     }
@@ -66,7 +66,7 @@ function suggestionFor(
     return {
       kind: 'ratio',
       message:
-        '看起來是比率，建議標成比率：合併多列時取平均、不顯示合計；之後可再指定分子分母改成加權',
+        '看起來是比率，建議標成比率：合併多列時取平均、不顯示合計；之後可再指定分子分母，算得更準',
       patch: { ratio: true },
     };
   }

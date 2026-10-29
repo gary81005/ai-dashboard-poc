@@ -38,7 +38,7 @@ export function QueryFailure({
 }
 
 // 圖表依父元素大小繪製，所以繪圖區用絕對定位的 Box 給出明確尺寸；
-// 需要時在上方另起一列顯示「⚠ 非加權平均」，不蓋住圖表內容。
+// 需要時在上方另起一列顯示「⚠ 直接平均，僅供參考」，不蓋住圖表內容。
 export function ChartArea({
   children,
   unweightedRatio = false,
@@ -49,12 +49,12 @@ export function ChartArea({
   return (
     <>
       {unweightedRatio && (
-        <Tooltip title='比率欄位在合併多列時取的是非加權平均，數字只能參考。精確值請改用 Excel 裡已算好的彙總表。'>
+        <Tooltip title='這個比率是把各列的百分比直接平均。各列份量不同時會失真，例如小門市的 50% 和大門市的 100% 會平均成 75%。到資料集頁指定分子、分母後，會改用「分子加總 ÷ 分母加總」重算。'>
           <Chip
             size='small'
             color='warning'
             variant='outlined'
-            label='⚠ 非加權平均'
+            label='⚠ 直接平均，僅供參考'
             sx={{ alignSelf: 'flex-end' }}
           />
         </Tooltip>

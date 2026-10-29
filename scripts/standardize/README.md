@@ -42,7 +42,7 @@ npm run standardize -- docs/poc/crm_export_20261028.xlsx docs/poc/CRM_標準化�
 | 5. 主檔加旗標   | 逐列（屬性是否完整）或跨列（名稱是否重複）的檢查                                       | `rows: sheetRows('客戶')`，跨列用 `ctx.countOf`                        |
 | 6. 日曆         | 日期欄位涵蓋的每一年各 12 個月                                                         | `rows: calendarMonths([...])`                                          |
 | 7. 彙總表       | 列是各事實表「期間 × 鍵」的聯集；指標寫成 COUNTIFS／SUMIFS 公式，比率寫成 IF(分母=0,…) | `aggregateTable`，公式用 `formula.ts` 的 `countIfs`、`sumIfs`、`ratio` |
-| 8. 資料品質檢核 | 每條規則是「符合條件的筆數 ÷ 母數」，寫成公式                                          | `checks`                                                               |
+| 8. 資料品質檢核 | 每條規則是「符合條件的筆數 ÷ 總筆數」，寫成公式                                        | `checks`                                                               |
 | 9. 中繼資料     | 使用說明、欄位定義（依每個欄位的代碼、型別、單位、資料來源自動產生）                   | `readme`；欄位定義不用寫                                               |
 
 輸出時每張表都是 Excel 表格物件（`tbl_fact_`、`tbl_agg_`、`tbl_dim_` 前綴代表種類），標題列凍結，依型別套數字格式。字色沿用 CRM 標準化檔的規則：資料值藍字、同表公式黑字、跨工作表連結綠字。公式的計算結果會一併寫進檔案，不用開 Excel 重算就看得到數字。

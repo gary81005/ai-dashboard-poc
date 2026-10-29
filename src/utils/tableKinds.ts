@@ -12,9 +12,9 @@ import { categoryKey } from './query.ts';
 export type TableKind = 'fact' | 'aggregate' | 'dimension' | 'parameter' | 'other';
 
 export const TABLE_KIND_LABELS: Record<TableKind, string> = {
-  fact: '明細',
-  aggregate: '彙總',
-  dimension: '主檔',
+  fact: '逐筆資料',
+  aggregate: '統計',
+  dimension: '名單',
   parameter: '參數',
   other: '未分類',
 };

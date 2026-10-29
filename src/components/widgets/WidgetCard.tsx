@@ -76,7 +76,7 @@ export function WidgetCard({
   } else if (!hasAnyField(widget)) {
     body = (
       <WidgetMessage>
-        {editing ? '把右側欄位清單的欄位拖到元件設定的槽位' : '尚未設定欄位'}
+        {editing ? '把右側欄位清單的欄位拖到元件設定的放置區' : '尚未設定欄位'}
       </WidgetMessage>
     );
   } else if (table && tableRows) {

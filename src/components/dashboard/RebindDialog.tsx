@@ -47,7 +47,7 @@ export function RebindDialog({ dashboard, open, onClose }: Props) {
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <DialogContentText>
-            例如換成下個月的報表。系統會依資料表名稱與欄位名稱（或欄位代碼）重新對應，資料集上手動調整過的欄位角色也會一併沿用。
+            例如換成下個月的報表。系統會依資料表名稱與欄位名稱（或欄位代碼）重新對應，資料集上手動調整過的欄位用途也會一併沿用。
           </DialogContentText>
           {candidates.length === 0 ? (
             <DialogContentText color='warning.main'>
