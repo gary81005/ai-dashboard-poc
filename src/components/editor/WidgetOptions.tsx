@@ -1,5 +1,5 @@
 // 元件設定中的「樣式」區：各圖表類型的變化型開關（面積、堆疊、橫式、甜甜圈），儀表圖的範圍，
-// 以及排序、前 N 名、門檻上色、合計（ADR 0008）。
+// 以及排序、前 N 名、門檻上色、合計（ADR 0008）；用到有值標籤的欄位時，可切換成顯示原始值（ADR 0011）。
 //
 // 變化型是同一類型的選項，不是獨立的類型（ADR 0005），所以切換時不必重新拖欄位。
 
@@ -14,6 +14,7 @@ import type { DataTable, Field, SortOrder, Thresholds, Widget } from '../../type
 import { resolveField } from '../../utils/fields.ts';
 import { isPercent } from '../../utils/format.ts';
 import { defaultThresholds } from '../../utils/thresholds.ts';
+import { usesValueLabels } from '../../utils/widgetEditing.ts';
 
 type Props = { widget: Widget; table: DataTable | undefined; onChange: (widget: Widget) => void };
 
@@ -72,6 +73,27 @@ export function WidgetOptions({ widget, table, onChange }: Props) {
     onChange({ ...widget, options: next } as Widget);
   };
 
+  // rawValues 是所有類型共用的欄位，不放在 options 裡；關閉時同樣移除。
+  const setRawValues = (raw: boolean) => {
+    const next = { ...widget };
+    if (raw) next.rawValues = true;
+    else delete next.rawValues;
+    onChange(next);
+  };
+  const rawToggle =
+    widget.rawValues || (table && usesValueLabels(widget, table)) ? (
+      <FormControlLabel
+        label='顯示原始值（不套用值標籤）'
+        control={
+          <Switch
+            size='small'
+            checked={widget.rawValues === true}
+            onChange={(_, checked) => setRawValues(checked)}
+          />
+        }
+      />
+    ) : null;
+
   if (widget.type === 'gauge') {
     return (
       <Stack spacing={1}>
@@ -81,6 +103,7 @@ export function WidgetOptions({ widget, table, onChange }: Props) {
         <Typography variant='caption' color='text.secondary'>
           留空時：比率欄位為 0～100%，其他為 0 到目前值 × 1.5
         </Typography>
+        {rawToggle}
         <Stack direction='row' spacing={1}>
           <TextField
             size='small'
@@ -103,7 +126,7 @@ export function WidgetOptions({ widget, table, onChange }: Props) {
 
   const sortable = widget.type === 'bar' || widget.type === 'table';
   const thresholdable = widget.type === 'bar' || widget.type === 'kpi' || widget.type === 'table';
-  if (!toggles && !sortable && !thresholdable) return null;
+  if (!toggles && !sortable && !thresholdable && !rawToggle) return null;
 
   const field = thresholdField(widget, table);
   const percent = field ? isPercent(field) : false;
@@ -130,6 +153,7 @@ export function WidgetOptions({ widget, table, onChange }: Props) {
           ))}
         </Stack>
       )}
+      {rawToggle}
       {sortable && (
         <Stack direction='row' spacing={1}>
           <TextField

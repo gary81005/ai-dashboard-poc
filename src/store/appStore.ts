@@ -22,7 +22,14 @@ import type {
 } from '../types/index.ts';
 
 // ratioOf：設定分子分母；null 代表取消加權（ADR 0008）。
-export type FieldPatch = { role?: Role; ratio?: boolean; ratioOf?: RatioOf | null };
+// valueLabels：設定值標籤；null 代表清除。showValueLabels：套用或停用值標籤（ADR 0011）。
+export type FieldPatch = {
+  role?: Role;
+  ratio?: boolean;
+  ratioOf?: RatioOf | null;
+  valueLabels?: Record<string, string> | null;
+  showValueLabels?: boolean;
+};
 
 // 資料集與儀表板的載入狀態。idle = 尚未登入或剛登出。
 export type LoadStatus =
@@ -65,7 +72,7 @@ type AppState = {
   setDashboardFilters: (dashboardId: string, filters: DashboardFilter[]) => void;
 };
 
-// 手動切換欄位角色／比率／分子分母時記下 userOverride，切換資料來源時才知道要沿用（ADR 0003 決策 5）。
+// 手動切換欄位角色／比率／分子分母／值標籤時記下 userOverride，切換資料來源時才知道要沿用（ADR 0003 決策 5）。
 // 改成維度時一併拿掉比率標記，因為維度不會被彙總；取消比率時也一併取消加權。
 function patchField(field: Field, patch: FieldPatch): Field {
   const overrides = new Set(field.userOverride);
@@ -96,6 +103,21 @@ function patchField(field: Field, patch: FieldPatch): Field {
       next.ratio = true;
     } else delete next.ratioOf;
     overrides.add('ratioOf');
+  }
+  // 值標籤的兩個屬性共用一個覆寫標記：使用者確認、修改或停用過，就不再提示「已自動套用」。
+  if (patch.valueLabels !== undefined) {
+    if (patch.valueLabels && Object.keys(patch.valueLabels).length > 0) {
+      next.valueLabels = patch.valueLabels;
+    } else {
+      delete next.valueLabels;
+      delete next.showValueLabels;
+    }
+    overrides.add('valueLabels');
+  }
+  if (patch.showValueLabels !== undefined) {
+    if (patch.showValueLabels) delete next.showValueLabels;
+    else next.showValueLabels = false;
+    overrides.add('valueLabels');
   }
   next.userOverride = [...overrides];
   return next;

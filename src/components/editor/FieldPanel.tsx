@@ -35,6 +35,7 @@ import {
 } from '../../utils/tableKinds.ts';
 import type { TableDescription } from '../../utils/tableKinds.ts';
 import { hasAnyField } from '../../utils/widgetEditing.ts';
+import { activeLabels, describeLabels, isBinaryLabeled, labelOf } from '../../utils/valueLabels.ts';
 import type { CheckedFields } from './RecommendPanel.tsx';
 
 type Props = {
@@ -310,8 +311,12 @@ function valuesText(profile: FieldProfile): string {
   const { field, samples, distinct, range } = profile;
   if (field.role === 'dimension' || samples.length > 0) {
     if (distinct === 0) return '（沒有值）';
-    return `${samples.join('、')}${distinct > samples.length ? ` …共 ${distinct} 種` : ''}`;
+    const shown = samples.map((sample) => labelOf(field, sample));
+    return `${shown.join('、')}${distinct > samples.length ? ` …共 ${distinct} 種` : ''}`;
   }
+  // 套用值標籤的 0/1 量值：列出對照，而不是「是 0 筆 ～ 是 1 筆」。
+  const labels = isBinaryLabeled(field) ? activeLabels(field) : undefined;
+  if (labels) return describeLabels(labels);
   if (!range) return '（沒有數字）';
   return `${formatValue(field, 'sum', range.min)} ～ ${formatValue(field, 'sum', range.max)}`;
 }

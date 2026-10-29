@@ -9,6 +9,8 @@ import { SCHEMA_VERSION } from '../types/index.ts';
 //
 // v1 → v2（ADR 0008）只新增選填欄位（Field.ratioOf、Dashboard.filters、widget 的 description／
 // 樣式選項、文字元件），v1 的記錄本身就是合法的 v2，不需要轉換。
+// v2 → v3（ADR 0011）同樣只新增選填欄位（Field.valueLabels／showValueLabels、Widget.rawValues），
+// 不需要轉換；舊資料集不會補上自動偵測的值標籤，需要時在資料集頁手動設定或重新上傳。
 export function migrateRecord<T>(body: Json, version: number, label: string): T {
   if (version > SCHEMA_VERSION) {
     throw new Error(`${label}的格式 v${version} 比目前程式支援的 v${SCHEMA_VERSION} 還新`);

@@ -14,6 +14,7 @@ import type { FieldDragItem } from '../../types/dnd.ts';
 import type { Dataset, DatasetRows, Filter, Widget } from '../../types/index.ts';
 import { findTable, resolveField, toFieldRef } from '../../utils/fields.ts';
 import { orderCategories } from '../../utils/query.ts';
+import { labelOf, withRawValues } from '../../utils/valueLabels.ts';
 import { hasAnyField } from '../../utils/widgetEditing.ts';
 import { DropZone } from './Shelf.tsx';
 
@@ -72,10 +73,13 @@ type FilterChipProps = {
 // 一個篩選條件的標籤；點擊後彈出可勾選的值清單（值來自目前資料表的實際資料）。
 function FilterChip({ filter, widget, dataset, rows, onChange, onDelete }: FilterChipProps) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
-  const table = findTable(dataset, widget.table);
+  const sourceTable = findTable(dataset, widget.table);
+  const table = sourceTable && widget.rawValues ? withRawValues(sourceTable) : sourceTable;
   const field = table ? resolveField(table, filter.field) : undefined;
   const options = table && field ? orderCategories(rows[table.key] ?? [], field) : [];
   const selected = new Set(filter.values.map(String));
+  // 選項與摘要顯示值標籤，存的仍是原始值（ADR 0011）。
+  const show = (value: string | number) => (field ? labelOf(field, String(value)) : String(value));
 
   const toggle = (value: string) => {
     const next = new Set(selected);
@@ -88,7 +92,7 @@ function FilterChip({ filter, widget, dataset, rows, onChange, onDelete }: Filte
     filter.values.length === 0
       ? '全部'
       : filter.values.length <= 2
-        ? filter.values.join('、')
+        ? filter.values.map(show).join('、')
         : `${filter.values.length} 項`;
 
   return (
@@ -119,7 +123,7 @@ function FilterChip({ filter, widget, dataset, rows, onChange, onDelete }: Filte
             {options.map((option) => (
               <FormControlLabel
                 key={option}
-                label={option}
+                label={show(option)}
                 control={
                   <Checkbox
                     size='small'

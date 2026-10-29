@@ -1,4 +1,5 @@
 // 「上傳 Excel」與「載入範例資料」兩個按鈕，含處理中狀態、寫入資料列的進度與結果提示（Snackbar）。
+// 資料集頁另外顯示「資料標準化」（StandardizeButton），把系統匯出的原始檔轉成標準化活頁簿。
 //
 // 用在儀表板清單的空狀態、資料集頁，以及匯入儀表板的對話框。
 
@@ -12,6 +13,7 @@ import Stack from '@mui/material/Stack';
 import { importWorkbook } from '../../services/datasetService.ts';
 import { loadSample } from '../../services/sampleService.ts';
 import { useUiStore } from '../../store/uiStore.ts';
+import { StandardizeButton } from './StandardizeButton.tsx';
 
 type Busy = 'upload' | 'sample' | null;
 type Notice = { severity: 'success' | 'warning' | 'error'; message: string };
@@ -22,11 +24,16 @@ function errorMessage(error: unknown): string {
 
 type Props = {
   showSample?: boolean;
+  showStandardize?: boolean;
   // 在對話框裡上傳時，不要跳離目前畫面到資料集頁。
   stayOnPage?: boolean;
 };
 
-export function WorkbookActions({ showSample = true, stayOnPage = false }: Props) {
+export function WorkbookActions({
+  showSample = true,
+  showStandardize = false,
+  stayOnPage = false,
+}: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState<Busy>(null);
   // 寫入資料列的百分比；解析與上傳原始檔期間還沒有進度，是 null。
@@ -111,6 +118,7 @@ export function WorkbookActions({ showSample = true, stayOnPage = false }: Props
           {busy === 'sample' ? label() : '載入範例資料'}
         </Button>
       )}
+      {showStandardize && <StandardizeButton disabled={busy !== null} />}
       <Snackbar
         open={notice !== null}
         autoHideDuration={6000}

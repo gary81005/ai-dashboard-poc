@@ -72,7 +72,7 @@ export function ComboWidget({ widget, ctx }: Props) {
     <ChartArea unweightedRatio={result.unweightedRatio}>
       <ChartsDataProvider
         series={series}
-        xAxis={[{ id: 'x', scaleType: 'band', data: result.categories, height: 'auto' }]}
+        xAxis={[{ id: 'x', scaleType: 'band', data: result.categoryLabels, height: 'auto' }]}
         yAxis={yAxes}
       >
         <ChartsWrapper

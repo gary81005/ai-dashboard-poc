@@ -91,7 +91,7 @@ export function rebindDashboard(dashboard: Dashboard, dataset: Dataset): Dashboa
   return { ...dashboard, datasetId: dataset.id, widgets, ...(filters ? { filters } : {}) };
 }
 
-// ADR 0003 決策 5：手動調整過的角色／比率標記／分子分母，沿用到新資料集裡對應的欄位；
+// ADR 0003 決策 5：手動調整過的角色／比率標記／分子分母／值標籤，沿用到新資料集裡對應的欄位；
 // 新資料集裡已經被使用者調整過的欄位則不覆蓋。沒有任何變更時回傳原物件。
 // 分子分母要兩欄在新資料表裡都還在才沿用。
 export function carryOverrides(from: Dataset, to: Dataset): Dataset {
@@ -117,6 +117,13 @@ export function carryOverrides(from: Dataset, to: Dataset): Dataset {
           next.ratioOf = ratioOf;
           next.ratio = true;
         } else delete next.ratioOf;
+      }
+      // 值標籤（ADR 0011）：沿用上一份的對照與開關，包括「清除」和「停用」。
+      if (previous.userOverride.includes('valueLabels')) {
+        if (previous.valueLabels) next.valueLabels = previous.valueLabels;
+        else delete next.valueLabels;
+        if (previous.showValueLabels === false) next.showValueLabels = false;
+        else delete next.showValueLabels;
       }
       if (next.role === 'dimension' || !next.ratio) delete next.ratioOf;
       if (next.role === 'dimension') delete next.ratio;

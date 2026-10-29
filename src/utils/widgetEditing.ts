@@ -7,6 +7,7 @@ import { DEFAULT_WIDGET_SIZE, WIDGET_SLOTS, WIDGET_TYPE_LABELS } from '../consta
 import type { SlotDef } from '../constants/widgetTypes.ts';
 import type {
   Agg,
+  DataTable,
   Field,
   FieldRef,
   Filter,
@@ -15,9 +16,10 @@ import type {
   WidgetType,
 } from '../types/index.ts';
 import { looksLikeFlag } from './fieldKinds.ts';
-import { toFieldRef } from './fields.ts';
+import { resolveField, toFieldRef } from './fields.ts';
 import { createId } from './ids.ts';
 import { isInferredRatioField } from './inference.ts';
+import { activeLabels } from './valueLabels.ts';
 
 // 槽位裡的一個項目，統一各種槽位的形狀：維度只有 field，量值多了 agg，組合圖再多 mark／axis。
 export type SlotEntry = {
@@ -118,7 +120,20 @@ export function hasAnyField(widget: Widget): boolean {
   );
 }
 
-type WidgetBase = Pick<Widget, 'id' | 'title' | 'description' | 'table' | 'filters'>;
+// widget 用到的欄位（槽位與篩選）裡，有沒有設了值標籤的（決定要不要顯示「顯示原始值」開關，ADR 0011）。
+// 欄位層級已經停用的不算：那些欄位本來就顯示原始值。
+export function usesValueLabels(widget: Widget, table: DataTable): boolean {
+  const refs = [
+    ...WIDGET_SLOTS[widget.type].flatMap((slot) => readSlot(widget, slot).map((e) => e.field)),
+    ...widget.filters.map((f) => f.field),
+  ];
+  return refs.some((ref) => {
+    const field = resolveField(table, ref);
+    return field !== undefined && activeLabels(field) !== undefined;
+  });
+}
+
+type WidgetBase = Pick<Widget, 'id' | 'title' | 'description' | 'table' | 'filters' | 'rawValues'>;
 
 // 產生指定類型的空白 widget。每個 case 分開寫，TypeScript 才能正確推斷聯集型別。
 function emptyWidget(base: WidgetBase, type: WidgetType): Widget {
@@ -187,6 +202,7 @@ export function convertWidget(widget: Widget, type: WidgetType): Widget {
       description: widget.description,
       table: bound ? widget.table : '',
       filters: bound ? widget.filters : [],
+      ...(bound && widget.rawValues ? { rawValues: true } : {}),
     },
     type,
   );

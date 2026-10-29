@@ -16,7 +16,7 @@ import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { FieldDragItem } from '../../types/dnd.ts';
 import type { DashboardFilter, Dashboard, Dataset, DatasetRows } from '../../types/index.ts';
-import { filterOptions, tablesWithField } from '../../utils/dashboardFilters.ts';
+import { filterOptionLabel, filterOptions, tablesWithField } from '../../utils/dashboardFilters.ts';
 import { toFieldRef } from '../../utils/fields.ts';
 import { DropZone } from '../editor/Shelf.tsx';
 
@@ -51,6 +51,7 @@ export function DashboardFilterBar({ dashboard, dataset, rows, editing }: Props)
             key={filter.field.header}
             filter={filter}
             options={filterOptions(dataset, rows, filters, values, filter)}
+            getLabel={(option) => filterOptionLabel(dataset, filter, option)}
             value={values[filter.field.header] ?? []}
             missing={tablesWithField(dataset, filter).length === 0}
             onChange={(next) => setFilterValue(dashboard.id, filter.field.header, next)}
@@ -87,6 +88,7 @@ export function DashboardFilterBar({ dashboard, dataset, rows, editing }: Props)
 type FilterSelectProps = {
   filter: DashboardFilter;
   options: string[];
+  getLabel: (option: string) => string;
   value: string[];
   missing: boolean;
   onChange: (values: string[]) => void;
@@ -96,7 +98,15 @@ type FilterSelectProps = {
 // 一個篩選欄位：可以打字搜尋的多選下拉。資料集裡沒有任何資料表有這個欄位時標成錯誤。
 // 其他篩選改變後，已選的值可能不在新的選項裡（例如先選人員、再選別的區域），
 // 仍保留在選項中，讓使用者看得到、也能取消。
-function FilterSelect({ filter, options, value, missing, onChange, onRemove }: FilterSelectProps) {
+function FilterSelect({
+  filter,
+  options,
+  getLabel,
+  value,
+  missing,
+  onChange,
+  onRemove,
+}: FilterSelectProps) {
   const choices = [...value.filter((v) => !options.includes(v)), ...options];
   return (
     <Stack direction='row' sx={{ alignItems: 'center', width: { xs: '100%', sm: 'auto' } }}>
@@ -106,6 +116,7 @@ function FilterSelect({ filter, options, value, missing, onChange, onRemove }: F
         limitTags={2}
         disableCloseOnSelect
         options={choices}
+        getOptionLabel={getLabel}
         value={value}
         onChange={(_, next) => onChange(next)}
         noOptionsText='沒有可選的值'

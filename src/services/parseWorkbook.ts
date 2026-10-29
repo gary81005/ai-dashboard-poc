@@ -12,6 +12,7 @@ import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import type { Cell, Worksheet } from 'exceljs';
 import { DICTIONARY_TYPES, inferRatio, inferRole } from '../utils/inference.ts';
+import { detectValueLabels } from '../utils/valueLabels.ts';
 import type {
   CellValue,
   DataTable,
@@ -45,6 +46,8 @@ type ColumnStats = {
   dates: number;
   numbers: number;
   integers: number;
+  // Excel 的 TRUE/FALSE 個數；這些值已轉成 1/0，也算進 numbers、integers（ADR 0011）。
+  booleans: number;
   others: number;
   numFmt?: string;
   values: CellValue[];
@@ -232,6 +235,7 @@ function readSheet(ws: Worksheet): PendingTable | SkippedSheet {
     dates: 0,
     numbers: 0,
     integers: 0,
+    booleans: 0,
     others: 0,
     values: [],
   }));
@@ -242,7 +246,9 @@ function readSheet(ws: Worksheet): PendingTable | SkippedSheet {
     let empty = true;
     headers.forEach((header, i) => {
       const cell = excelRow.getCell(range.left + i);
-      const raw = cellValue(cell);
+      const cell0 = cellValue(cell);
+      // TRUE/FALSE 轉成 1/0：和 0/1 欄位走同一套規則，量值才能算「是」的筆數與比例（ADR 0011）。
+      const raw = typeof cell0 === 'boolean' ? Number(cell0) : cell0;
       const value = toCellValue(raw);
       row[header] = value;
       const stat = stats[i];
@@ -254,6 +260,7 @@ function readSheet(ws: Worksheet): PendingTable | SkippedSheet {
       stat.values.push(value);
       if (raw instanceof Date) stat.dates += 1;
       else if (typeof raw === 'number') {
+        if (typeof cell0 === 'boolean') stat.booleans += 1;
         stat.numbers += 1;
         if (Number.isInteger(raw)) stat.integers += 1;
       } else stat.others += 1;
@@ -338,6 +345,7 @@ function buildField(table: PendingTable, index: number, entry: DictionaryEntry |
   const weighted =
     role === 'measure' ? ratioOf(index, stat.ratio, table.headers, table.stats) : undefined;
   const ratio = weighted !== undefined || (role === 'measure' && inferRatio(dataType, stat.numFmt));
+  const valueLabels = detectValueLabels(dataType, stat.values, entry?.unit, stat.booleans > 0);
   return {
     header,
     ...(entry?.code ? { code: entry.code } : {}),
@@ -347,6 +355,7 @@ function buildField(table: PendingTable, index: number, entry: DictionaryEntry |
     role,
     ...(ratio ? { ratio: true } : {}),
     ...(weighted ? { ratioOf: weighted } : {}),
+    ...(valueLabels ? { valueLabels } : {}),
   };
 }
 

@@ -2,11 +2,13 @@
 //
 // 每種圖表各有一個 query 函式（queryCategorical／queryPie／queryScatter／queryValue／queryTable），
 // 共同流程都是：套用篩選 → 解析欄位參照 → 分組 → 彙總。
+// 分組、排序、篩選一律用原始值（categoryKey）；輸出給畫面的分類名稱、系列名稱才換成值標籤（ADR 0011）。
 // 找不到欄位時丟出 MissingFieldError，由 utils/runQuery.ts 轉成畫面上的「欄位遺失」提示。
 // 這裡全是純函式、不依賴 React，可以直接在 Node 中執行測試。
 
 import { measureLabel, resolveField } from './fields.ts';
 import { isInferredRatioField, isPeriodValue } from './inference.ts';
+import { labelOf, labelsOf } from './valueLabels.ts';
 import type {
   Agg,
   CellValue,
@@ -179,7 +181,9 @@ export type CategoricalSeries = {
 
 export type CategoricalResult = {
   xField: Field;
+  // 分類的原始值（分組鍵）與畫面上顯示的名稱（套用值標籤），兩者順序一致。
   categories: string[];
+  categoryLabels: string[];
   series: CategoricalSeries[];
   // 每個分類不分組、用第一個量值對該分類全部資料列彙總的值，排序用（sortCategorical）。
   // 不能拿各組的值相加：比率欄位相加沒有意義（80% + 120% ≠ 200%）。
@@ -210,8 +214,8 @@ export function queryCategorical(
       label: !groupField
         ? measure.label
         : resolved.length > 1
-          ? `${groupValue}・${measure.label}`
-          : groupValue,
+          ? `${labelOf(groupField, groupValue)}・${measure.label}`
+          : labelOf(groupField, groupValue),
       measure,
       measureIndex,
       data: categories.map((category) => {
@@ -228,7 +232,8 @@ export function queryCategorical(
     const bucket = byCategory.get(bucketKey([category]));
     return first && bucket ? aggregate(bucket, first.field, first.agg) : null;
   });
-  return { xField, categories, series, categoryTotals, unweightedRatio };
+  const categoryLabels = labelsOf(xField, categories);
+  return { xField, categories, categoryLabels, series, categoryTotals, unweightedRatio };
 }
 
 // 依第一個量值排序分類（有分組時用整個分類重新彙總的值，見 categoryTotals），再只留前 limit 個；
@@ -254,6 +259,7 @@ export function sortCategorical(
   return {
     ...result,
     categories: indexes.map((i) => result.categories[i]),
+    categoryLabels: indexes.map((i) => result.categoryLabels[i]),
     categoryTotals: indexes.map((i) => result.categoryTotals[i]),
     series: result.series.map((s) => ({ ...s, data: indexes.map((i) => s.data[i]) })),
   };
@@ -272,11 +278,13 @@ export function queryPie(ctx: QueryContext, category: FieldRef, value: Measure):
   const measure = resolveMeasure(ctx.table, value);
   const buckets = groupRows(rows, [categoryField]);
   let unweightedRatio = false;
-  const items = orderCategories(rows, categoryField).flatMap((label) => {
-    const bucket = buckets.get(bucketKey([label])) ?? [];
+  const items = orderCategories(rows, categoryField).flatMap((key) => {
+    const bucket = buckets.get(bucketKey([key])) ?? [];
     if (mergesRatio(measure, bucket)) unweightedRatio = true;
     const total = aggregate(bucket, measure.field, measure.agg);
-    return total !== null && total > 0 ? [{ id: label, label, value: total }] : [];
+    return total !== null && total > 0
+      ? [{ id: key, label: labelOf(categoryField, key), value: total }]
+      : [];
   });
   return { measure, items, unweightedRatio };
 }
@@ -320,7 +328,7 @@ export function queryScatter(
         const py = aggregate(bucket, yMeasure.field, yMeasure.agg);
         return px === null || py === null
           ? []
-          : [{ id: `${colorValue}:${key}`, x: px, y: py, label: key }];
+          : [{ id: `${colorValue}:${key}`, x: px, y: py, label: labelOf(detailField, key) }];
       });
     } else {
       // 沒有明細欄位：每一列資料就是一個點，不做彙總。
@@ -332,7 +340,11 @@ export function queryScatter(
           : [];
       });
     }
-    return { id: colorValue || 'all', label: colorValue || yMeasure.label, points };
+    return {
+      id: colorValue || 'all',
+      label: colorField ? labelOf(colorField, colorValue) : yMeasure.label,
+      points,
+    };
   });
   return { x: xMeasure, y: yMeasure, series, unweightedRatio };
 }
@@ -356,11 +368,11 @@ export function queryValue(ctx: QueryContext, value: Measure, trend?: FieldRef):
   if (trend) {
     const trendField = fieldOf(ctx.table, trend);
     const buckets = groupRows(rows, [trendField]);
-    const labels = orderCategories(rows, trendField);
+    const keys = orderCategories(rows, trendField);
     result.trend = {
-      labels,
-      data: labels.map((label) =>
-        aggregate(buckets.get(bucketKey([label])) ?? [], measure.field, measure.agg),
+      labels: labelsOf(trendField, keys),
+      data: keys.map((key) =>
+        aggregate(buckets.get(bucketKey([key])) ?? [], measure.field, measure.agg),
       ),
     };
   }

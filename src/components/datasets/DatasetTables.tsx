@@ -11,7 +11,7 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useDatasetRows } from '../../hooks/useDatasetRows.ts';
 import type { Dataset, DatasetRows } from '../../types/index.ts';
-import { checkFields } from '../../utils/fieldHealth.ts';
+import { autoLabeledFields, checkFields } from '../../utils/fieldHealth.ts';
 import {
   TABLE_KIND_LABELS,
   describeTable,
@@ -45,7 +45,11 @@ export function DatasetTables({ dataset }: { dataset: Dataset }) {
         </Typography>
       )}
       {entry.status === 'ready' && (
-        <FieldHealth datasetId={dataset.id} suggestions={checkFields(dataset, entry.rows)} />
+        <FieldHealth
+          datasetId={dataset.id}
+          suggestions={checkFields(dataset, entry.rows)}
+          autoLabeled={autoLabeledFields(dataset)}
+        />
       )}
       {groupByKind(descriptions).map(({ kind, items }) => (
         <Stack key={kind} spacing={1}>
@@ -68,6 +72,7 @@ export function DatasetTables({ dataset }: { dataset: Dataset }) {
                   datasetId={dataset.id}
                   table={description.table}
                   summary={entry.status === 'ready' ? grainText(description) : undefined}
+                  rows={entry.status === 'ready' ? (rows[description.table.key] ?? []) : undefined}
                 />
               ))}
             </div>
@@ -81,7 +86,12 @@ export function DatasetTables({ dataset }: { dataset: Dataset }) {
           </Typography>
           <div>
             {hidden.map((table) => (
-              <TableFieldsAccordion key={table.key} datasetId={dataset.id} table={table} />
+              <TableFieldsAccordion
+                key={table.key}
+                datasetId={dataset.id}
+                table={table}
+                rows={entry.status === 'ready' ? (rows[table.key] ?? []) : undefined}
+              />
             ))}
           </div>
         </Stack>

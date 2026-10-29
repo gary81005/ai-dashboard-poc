@@ -13,7 +13,8 @@ import type { DashboardFilter, Dataset, DatasetRows, Widget } from '../../types/
 import { filtersForTable } from '../../utils/dashboardFilters.ts';
 import { profilesOf } from '../../utils/fieldKinds.ts';
 import type { SelectedValues } from '../../utils/dashboardFilters.ts';
-import { findTable } from '../../utils/fields.ts';
+import { findTable, resolveField } from '../../utils/fields.ts';
+import { labelOf, withRawValues } from '../../utils/valueLabels.ts';
 import { checkWidget } from '../../utils/widgetChecks.ts';
 import { activeFilters, hasAnyField } from '../../utils/widgetEditing.ts';
 import { WidgetBody } from './WidgetBody.tsx';
@@ -46,11 +47,17 @@ export function WidgetCard({
   onRemove,
   onChange,
 }: Props) {
-  const table = findTable(dataset, widget.table);
+  const sourceTable = findTable(dataset, widget.table);
+  // 選了「顯示原始值」的元件：整張表停用值標籤後再查詢、篩選與顯示（ADR 0011）。
+  const table = sourceTable && widget.rawValues ? withRawValues(sourceTable) : sourceTable;
   const tableRows = table ? rows[table.key] : undefined;
 
   const filterSummary = activeFilters(widget)
-    .map((f) => `${f.field.header}：${f.values.join('、')}`)
+    .map((f) => {
+      const field = table && resolveField(table, f.field);
+      const values = f.values.map((v) => (field ? labelOf(field, String(v)) : String(v)));
+      return `${f.field.header}：${values.join('、')}`;
+    })
     .join('・');
   const { applied, skipped } = table
     ? filtersForTable(table, dashboardFilters, filterValues)

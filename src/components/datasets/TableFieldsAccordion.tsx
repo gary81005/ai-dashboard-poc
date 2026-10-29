@@ -1,6 +1,6 @@
 // 一張資料表的欄位清單（可展開）：顯示代碼、型別、單位，並讓使用者手動調整
 // 角色（維度／量值）、比率標記（ADR 0004）與加權比率的分子分母（ADR 0008），
-// 以及這張表要不要出現在編輯模式的欄位清單。
+// 值標籤（ADR 0011），以及這張表要不要出現在編輯模式的欄位清單。
 
 import { useState } from 'react';
 import Accordion from '@mui/material/Accordion';
@@ -23,14 +23,23 @@ import TextField from '@mui/material/TextField';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
-import type { DataTable, Field, RatioOf, Role } from '../../types/index.ts';
+import type { DataTable, Field, RatioOf, Role, Row } from '../../types/index.ts';
 import { setTableHidden, updateField } from '../../services/datasetService.ts';
+import { profilesOf } from '../../utils/fieldKinds.ts';
 import { DATA_TYPE_LABELS } from '../../utils/fields.ts';
+import { BLANK_CATEGORY, orderCategories } from '../../utils/query.ts';
+import { MAX_LABELED_VALUES, activeLabels, describeLabels } from '../../utils/valueLabels.ts';
+import { ValueLabelsDialog } from './ValueLabelsDialog.tsx';
 
 // summary：「一列 = …・642 列」（ADR 0010 §3）；資料列還沒載入時只顯示列數。
-type Props = { datasetId: string; table: DataTable; summary?: string };
+// rows：這張表的資料列，值標籤要列出實際出現的值；還沒載入時是 undefined。
+type Props = { datasetId: string; table: DataTable; summary?: string; rows?: readonly Row[] };
 
-export function TableFieldsAccordion({ datasetId, table, summary }: Props) {
+export function TableFieldsAccordion({ datasetId, table, summary, rows }: Props) {
+  const [labeling, setLabeling] = useState<Field | null>(null);
+  // 不同值的數量用欄位分類的快取（以資料表與資料列為鍵），不必每次重新掃描。
+  const profiles = rows ? profilesOf(table, rows) : undefined;
+
   return (
     <Accordion disableGutters variant='outlined' sx={{ opacity: table.hidden ? 0.6 : 1 }}>
       <AccordionSummary>
@@ -70,10 +79,11 @@ export function TableFieldsAccordion({ datasetId, table, summary }: Props) {
                 <TableCell>單位</TableCell>
                 <TableCell>角色</TableCell>
                 <TableCell>比率（不可加總）</TableCell>
+                <TableCell>值標籤</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {table.fields.map((field) => (
+              {table.fields.map((field, index) => (
                 <TableRow key={field.header}>
                   <TableCell>
                     <Stack direction='row' spacing={1} sx={{ alignItems: 'center' }}>
@@ -120,13 +130,61 @@ export function TableFieldsAccordion({ datasetId, table, summary }: Props) {
                       )}
                     </Stack>
                   </TableCell>
+                  <TableCell>
+                    <ValueLabelsButton
+                      field={field}
+                      distinct={profiles?.[index]?.distinct}
+                      onOpen={() => setLabeling(field)}
+                    />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </TableContainer>
+        {labeling && rows && (
+          <ValueLabelsDialog
+            field={labeling}
+            values={distinctValues(rows, labeling)}
+            onClose={() => setLabeling(null)}
+            onSave={(patch) => updateField(datasetId, table.key, labeling.header, patch)}
+          />
+        )}
       </AccordionDetails>
     </Accordion>
+  );
+}
+
+function distinctValues(rows: readonly Row[], field: Field): string[] {
+  return orderCategories(rows, field).filter((v) => v !== BLANK_CATEGORY);
+}
+
+// distinct：不同值的數量（不含空白）；資料列還沒載入時是 undefined。
+type ValueLabelsButtonProps = { field: Field; distinct: number | undefined; onOpen: () => void };
+
+// 目前的對照（或「已停用」）；資料列還沒載入、或不同值太多的欄位不能設定。
+function ValueLabelsButton({ field, distinct, onOpen }: ValueLabelsButtonProps) {
+  const tooMany = distinct !== undefined && distinct > MAX_LABELED_VALUES;
+  const active = activeLabels(field);
+  const text = active ? describeLabels(active) : field.valueLabels ? '已停用' : '設定';
+  const reason =
+    distinct === undefined
+      ? '資料列載入後才能設定'
+      : tooMany
+        ? `有 ${distinct} 種值，超過 ${MAX_LABELED_VALUES} 種的欄位不提供值標籤`
+        : undefined;
+  return (
+    <Button
+      size='small'
+      disabled={reason !== undefined}
+      title={reason ?? text}
+      onClick={onOpen}
+      sx={{ maxWidth: 220, justifyContent: 'flex-start' }}
+    >
+      <Typography component='span' variant='body2' noWrap>
+        {text}
+      </Typography>
+    </Button>
   );
 }
 

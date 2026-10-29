@@ -8,11 +8,12 @@ import Typography from '@mui/material/Typography';
 import { DataGrid, GridFooterContainer, GridPagination } from '@mui/x-data-grid';
 import type { GridColDef, GridSlotProps } from '@mui/x-data-grid';
 import { formatValue } from '../../utils/format.ts';
-import { queryTable } from '../../utils/query.ts';
+import { categoryKey, queryTable } from '../../utils/query.ts';
 import type { QueryContext, TableResultColumn } from '../../utils/query.ts';
 import type { CellValue, TableWidget as TableWidgetConfig } from '../../types/index.ts';
 import { runQuery } from '../../utils/runQuery.ts';
 import { toneOf } from '../../utils/thresholds.ts';
+import { activeLabels, labelOf } from '../../utils/valueLabels.ts';
 import { ChartArea, QueryFailure, WidgetMessage } from './WidgetParts.tsx';
 
 declare module '@mui/x-data-grid' {
@@ -26,6 +27,15 @@ type Props = { widget: TableWidgetConfig; ctx: QueryContext };
 const isNumeric = (c: TableResultColumn) => c.agg !== undefined || c.field.role === 'measure';
 const format = (c: TableResultColumn, value: number | null) =>
   formatValue(c.field, c.agg ?? 'sum', value);
+
+// 一格的顯示文字：沒有彙總的欄位（明細值、分組鍵）有值標籤就顯示標籤（ADR 0011），
+// 其他數字依欄位格式；彙總後的 0/1 欄位由 formatValue 顯示成「是 35%」這類文字。
+function formatCell(c: TableResultColumn, value: CellValue): CellValue {
+  if (!c.agg && activeLabels(c.field) && value !== null && value !== '') {
+    return labelOf(c.field, categoryKey(value));
+  }
+  return typeof value === 'number' ? format(c, value) : value;
+}
 
 export function TableWidget({ widget, ctx }: Props) {
   const { columns } = widget.encoding;
@@ -47,7 +57,7 @@ export function TableWidget({ widget, ctx }: Props) {
     flex: 1,
     minWidth: 110,
     type: isNumeric(c) ? 'number' : 'string',
-    valueFormatter: (value: CellValue) => (typeof value === 'number' ? format(c, value) : value),
+    valueFormatter: (value: CellValue) => formatCell(c, value),
     ...(toned.has(c.key)
       ? {
           renderCell: ({ value, formattedValue }) => {

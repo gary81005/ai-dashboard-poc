@@ -3,7 +3,7 @@
 // 這裡是格式的「正本」。修改任何欄位的意義，都必須調高 SCHEMA_VERSION，
 // 並在 utils/schema.ts 的 migrateRecord 補上舊格式的轉換。
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 // ── 資料集端：上傳的 Excel 解析後的中繼資料 ─────────────────────────────
 
@@ -24,7 +24,12 @@ export type Field = {
   role: Role;
   ratio?: boolean;
   ratioOf?: RatioOf;
-  userOverride?: Array<'role' | 'ratio' | 'ratioOf'>;
+  // 值標籤（ADR 0011）：原始值（categoryKey 轉成的字串）→ 顯示文字，例如 { "1": "是", "0": "否" }。
+  // 只改顯示，分組、排序、篩選仍用原始值。0/1 欄位上傳時自動套用。
+  valueLabels?: Record<string, string>;
+  // false = 保留對照但不套用（所有儀表板都顯示原始值）；沒設定視為 true。
+  showValueLabels?: boolean;
+  userOverride?: Array<'role' | 'ratio' | 'ratioOf' | 'valueLabels'>;
 };
 
 // 加權比率的分子與分母（同一張資料表的欄位標頭）。有設定時，分組彙總改算
@@ -70,12 +75,14 @@ export type SortOrder = 'asc' | 'desc';
 
 // 所有 widget 共用的欄位。table 為空字串代表還沒拖入任何欄位（由第一個欄位決定）。
 // description 是標題下方的說明文字（例如指標的計算口徑）。
+// rawValues：這個元件不套用欄位的值標籤，顯示原始值（ADR 0011）。
 type WidgetBase = {
   id: string;
   title: string;
   description?: string;
   table: string;
   filters: Filter[];
+  rawValues?: boolean;
 };
 
 export type LineWidget = WidgetBase & {

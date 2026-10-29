@@ -47,10 +47,14 @@ export function CartesianWidget({ widget, ctx }: Props) {
   const valueY = { valueFormatter: formatAxis, width: 'auto' as const, ...colorMap };
   const categoryX = {
     scaleType: 'band' as const,
-    data: result.categories,
+    data: result.categoryLabels,
     height: 'auto' as const,
   };
-  const categoryY = { scaleType: 'band' as const, data: result.categories, width: 'auto' as const };
+  const categoryY = {
+    scaleType: 'band' as const,
+    data: result.categoryLabels,
+    width: 'auto' as const,
+  };
   const stacked = widget.options?.stacked === true;
   const series = result.series.map((s) => ({
     id: s.id,
@@ -65,7 +69,7 @@ export function CartesianWidget({ widget, ctx }: Props) {
       <ChartArea unweightedRatio={result.unweightedRatio}>
         <LineChart
           margin={{ right: 24 }}
-          xAxis={[{ scaleType: 'point', data: result.categories, height: 'auto' }]}
+          xAxis={[{ scaleType: 'point', data: result.categoryLabels, height: 'auto' }]}
           yAxis={[valueY]}
           series={series.map((s) => ({
             ...s,

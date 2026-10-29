@@ -17,6 +17,7 @@ import Typography from '@mui/material/Typography';
 import type { DataTable, Filter, Row, Widget } from '../../types/index.ts';
 import { resolveField, toFieldRef } from '../../utils/fields.ts';
 import { orderCategories } from '../../utils/query.ts';
+import { labelOf } from '../../utils/valueLabels.ts';
 import { activeFilters } from '../../utils/widgetEditing.ts';
 
 type Props = {
@@ -88,6 +89,7 @@ export function WidgetFilterControl({ widget, table, rows, onChange }: Props) {
                   disableCloseOnSelect
                   limitTags={2}
                   options={options}
+                  getOptionLabel={(option) => (field ? labelOf(field, option) : option)}
                   value={filter.values.map(String)}
                   onChange={(_, values) => updateValues(index, values)}
                   disabled={!field}

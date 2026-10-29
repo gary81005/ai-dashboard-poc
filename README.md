@@ -12,6 +12,7 @@
   - 自動推斷欄位的角色（維度／量值）和比率，可以在資料集頁手動覆寫。
   - 依 `分子/分母` 的公式自動認出加權比率。
   - 「欄位健檢」列出角色或比率標記可能不對的欄位，可以逐條套用或忽略。
+  - 「資料標準化」把系統直接匯出的原始檔（目前支援 CRM 匯出檔）轉成符合規範的活頁簿：補齊缺值、轉換型別、拆出維度表與彙總表，並列出資料品質問題；轉換後可以下載或直接匯入。
 - **儀表板**
   - 10 種元件：折線、長條、組合、圓餅、散佈、雷達、儀表圖、KPI 卡、資料表格、文字。
   - 元件可以在 12 欄格線上拖動、縮放；畫面窄的時候自動重排成 2 欄或 1 欄。
@@ -84,6 +85,7 @@ npm run build    # tsc -b 型別檢查後 vite build
 npm run lint     # eslint
 npm test         # vitest：tests/ 裡的純邏輯測試
 npm run preview  # 預覽 dist/ 的正式版
+npm run standardize -- <原始檔.xlsx>  # 把系統匯出檔轉成標準化活頁簿（Node 24，見 scripts/standardize/）
 npm run db:push  # 把 supabase/migrations/ 套用到連結的 project
 npm run db:types # 依連結的 project 重新產生 src/types/database.ts
 ```
@@ -102,12 +104,14 @@ npm run db:types # 依連結的 project 重新產生 src/types/database.ts
 
 欄位以**中文標頭**識別，換新一期的檔案時標頭不變，儀表板就能直接沿用。
 
+系統直接匯出的原始檔（例如 CRM 匯出檔）通常不符合規範，可以先在資料集頁按「資料標準化」轉換，再下載或直接匯入，說明見 [`scripts/standardize/`](scripts/standardize/README.md)。
+
 ## 專案結構
 
 ```
 src/
   types/        持久化的設定格式（資料集、儀表板 JSON 的唯一來源）
-  utils/        純邏輯，不依賴 React：欄位推斷、彙總引擎、圖表推薦、版面計算…
+  utils/        純邏輯，不依賴 React：欄位推斷、彙總引擎、圖表推薦、版面計算、標準化引擎…
   services/     I/O：Supabase、登入、Excel 解析、資料集與儀表板的讀寫
   store/        Zustand：appStore（資料集與儀表板）、rowsStore、authStore、uiStore
   components/   widgets/（各元件）、editor/（編輯模式）、dashboard/、dashboards/、datasets/
@@ -115,6 +119,7 @@ src/
   constants/    範例儀表板、各元件的槽位定義
 supabase/migrations/  資料庫 schema 與 RLS
 public/samples/       範例活頁簿
+scripts/standardize/  npm run standardize 的進入點與說明（引擎與各來源的設定在 src/utils/standardize/）
 tests/                Vitest 測試；fixtures/ 是模擬資料的活頁簿
 docs/adr/             架構決策紀錄
 ```

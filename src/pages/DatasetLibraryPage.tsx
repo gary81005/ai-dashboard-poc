@@ -1,4 +1,4 @@
-// 資料集庫頁：上傳 Excel／載入範例，並列出每個資料集（最新的在最上面）。
+// 資料集庫頁：上傳 Excel／載入範例／資料標準化，並列出每個資料集（最新的在最上面）。
 //
 // 每個資料集可以檢視欄位、調整角色與比率標記、隱藏資料表、刪除（見 components/datasets/）。
 
@@ -22,7 +22,7 @@ export function DatasetLibraryPage() {
         <Typography variant='h5' component='h2'>
           資料集
         </Typography>
-        <WorkbookActions />
+        <WorkbookActions showStandardize />
       </Stack>
       {datasets.length === 0 ? (
         <Paper variant='outlined' sx={{ p: { xs: 3, sm: 6 }, textAlign: 'center' }}>

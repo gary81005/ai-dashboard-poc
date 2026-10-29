@@ -9,10 +9,14 @@
 //   - flag：0/1 旗標是量值，改成維度才能用來分組或篩選；放進數值槽位時仍然加總。
 //   - ratio：標頭看起來像比率（推測比率），但沒有標成比率。
 // 隱藏的資料表不檢查。
+//
+// 另外列出上傳時自動套用值標籤、使用者還沒確認的欄位（autoLabeledFields，ADR 0011）。
+// 這些不是「建議」而是告知：標籤已經生效，使用者可以保留或改回原始值。
 
 import type { Dataset, DatasetRows, Field, Role } from '../types/index.ts';
 import { isFlag } from './fieldKinds.ts';
 import { CYCLE_HEADERS, SEQUENCE_HEADERS, inferRole, isInferredRatioField } from './inference.ts';
+import { describeLabels, isAutoLabeled } from './valueLabels.ts';
 
 export type HealthKind = 'role' | 'flag' | 'ratio';
 
@@ -92,4 +96,28 @@ export function checkFields(dataset: Dataset, rows: DatasetRows): HealthSuggesti
     }
   }
   return suggestions;
+}
+
+export type AutoLabeled = {
+  id: string;
+  tableKey: string;
+  sheetName: string;
+  header: string;
+  // 對照的說明，例如「0 → 否、1 → 是」。
+  labels: string;
+};
+
+// 自動套用值標籤、還沒被使用者確認（保留、修改或改回原始值）的欄位，依資料表與欄位的順序。
+export function autoLabeledFields(dataset: Dataset): AutoLabeled[] {
+  return dataset.tables.flatMap((table) =>
+    table.hidden
+      ? []
+      : table.fields.filter(isAutoLabeled).map((field) => ({
+          id: `${table.key}\u0000${field.header}`,
+          tableKey: table.key,
+          sheetName: table.sheetName,
+          header: field.header,
+          labels: describeLabels(field.valueLabels ?? {}),
+        })),
+  );
 }

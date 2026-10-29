@@ -1,6 +1,6 @@
 # 0005. 儀表板設定 JSON 格式 v1
 
-- 狀態：已採納（v2 新增的選填欄位見 [0008](0008-dashboard-filters-weighted-ratios.md)）
+- 狀態：已採納（v2 新增的選填欄位見 [0008](0008-dashboard-filters-weighted-ratios.md)，v3 見 [0011](0011-value-labels.md)）
 - 日期：2026-10-05
 
 ## 背景

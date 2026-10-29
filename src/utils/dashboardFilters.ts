@@ -5,6 +5,7 @@
 import type { DashboardFilter, Dataset, DatasetRows, DataTable, Filter } from '../types/index.ts';
 import { resolveField, toFieldRef } from './fields.ts';
 import { categoryKey, orderCategories } from './query.ts';
+import { labelOf } from './valueLabels.ts';
 
 export type SelectedValues = Record<string, string[]>;
 
@@ -62,6 +63,23 @@ export function filterOptions(
     }
   }
   return options;
+}
+
+// 篩選選項的顯示文字：用第一張有這個欄位、而且有設值標籤的資料表的對照（ADR 0011），
+// 沒有任何對照就顯示原始值。選取與比對仍用原始值。
+export function filterOptionLabel(
+  dataset: Dataset,
+  target: DashboardFilter,
+  option: string,
+): string {
+  for (const table of dataset.tables) {
+    if (table.hidden) continue;
+    const field = resolveField(table, target.field);
+    if (!field) continue;
+    const label = labelOf(field, option);
+    if (label !== option) return label;
+  }
+  return option;
 }
 
 // 看得到的資料表裡有沒有這個欄位（編輯模式新增篩選時用來提示）。

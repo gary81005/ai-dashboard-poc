@@ -31,7 +31,7 @@ export function RadarWidget({ widget, ctx }: Props) {
   return (
     <ChartArea unweightedRatio={result.unweightedRatio}>
       <RadarChart
-        radar={{ metrics: result.categories }}
+        radar={{ metrics: result.categoryLabels }}
         series={result.series.map((s) => ({
           id: s.id,
           label: s.label,
