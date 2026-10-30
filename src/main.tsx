@@ -14,6 +14,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import './index.css';
 import { StartupErrorPage } from './pages/StartupErrorPage.tsx';
 import { theme } from './theme.ts';
+import { shareTokenOf } from './utils/shareLink.ts';
 
 const root = createRoot(document.getElementById('root')!);
 
@@ -30,8 +31,24 @@ function render(node: ReactNode) {
 
 // App 與 auth 用動態 import：services/supabase.ts 缺少環境變數時會在載入階段就 throw，
 // 寫成靜態 import 的話 try/catch 接不到，畫面只會一片空白。
+// 分享頁（ADR 0012）不用登入：不開始監聽登入狀態，也不載入使用者資料。
+// 加上 noindex，連結被貼到公開網頁時，搜尋引擎不會收錄分享的內容。
+async function startSharedDashboard(token: string) {
+  const meta = document.createElement('meta');
+  meta.name = 'robots';
+  meta.content = 'noindex';
+  document.head.append(meta);
+  const { SharedDashboardPage } = await import('./pages/SharedDashboardPage.tsx');
+  render(<SharedDashboardPage token={token} />);
+}
+
 async function start() {
   try {
+    const token = shareTokenOf(window.location.search);
+    if (token !== null) {
+      await startSharedDashboard(token);
+      return;
+    }
     const [{ default: App }, { startAuthListener }] = await Promise.all([
       import('./App.tsx'),
       import('./services/auth.ts'),

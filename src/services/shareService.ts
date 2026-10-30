@@ -2,8 +2,10 @@
 //
 // 分享結果在擁有者的瀏覽器算（utils/shareSnapshot.ts），需要儀表板目前的資料集與它已載入的資料列；
 // 儲存儀表板時由 dashboardService 交給 save_dashboard，和設定在同一個 transaction 裡寫入。
+// 看的人不用登入，只能透過 get_shared_dashboard 讀分享結果（fetchSharedDashboard）。
 
-import { buildSnapshot } from '../utils/shareSnapshot.ts';
+import { isShareToken } from '../utils/shareLink.ts';
+import { buildSnapshot, SNAPSHOT_VERSION } from '../utils/shareSnapshot.ts';
 import type { ShareSnapshot } from '../utils/shareSnapshot.ts';
 import type { Dashboard } from '../types/index.ts';
 import { supabase } from './supabase.ts';
@@ -38,4 +40,22 @@ export function snapshotForSave(dashboard: Dashboard): ShareSnapshot | null {
     throw new Error('資料還沒載入完成，無法更新分享連結的內容，請稍後再儲存');
   }
   return buildSnapshot(dashboard, dataset, entry.rows);
+}
+
+// 分享頁讀到的結果。invalid：連結不存在、已撤銷、已過期，或儀表板、資料集已刪除，一律不說明原因。
+// outdated：分享結果的格式比目前的程式舊，要請分享的人重新儲存一次。
+export type SharedDashboard =
+  | { status: 'invalid' }
+  | { status: 'outdated' }
+  | { status: 'ready'; snapshot: ShareSnapshot; snapshotAt: string };
+
+// 網路或資料庫錯誤時丟錯，分享頁顯示「重試」。
+export async function fetchSharedDashboard(token: string): Promise<SharedDashboard> {
+  if (!isShareToken(token)) return { status: 'invalid' };
+  const { data, error } = await supabase.rpc('get_shared_dashboard', { p_token: token });
+  if (error) throw new Error(error.message);
+  if (data === null) return { status: 'invalid' };
+  const { snapshot, snapshotAt } = data as { snapshot: ShareSnapshot; snapshotAt: string };
+  if (snapshot.version !== SNAPSHOT_VERSION) return { status: 'outdated' };
+  return { status: 'ready', snapshot, snapshotAt };
 }

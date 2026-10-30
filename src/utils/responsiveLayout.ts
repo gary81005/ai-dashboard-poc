@@ -16,6 +16,25 @@ export function columnsFor(width: number): number {
   return 1;
 }
 
+// 格線的列高與間距（react-grid-layout 的 gridConfig），擁有者的畫面與分享頁共用（ADR 0012）。
+// 重排成窄版時間距縮小一點，手機上留給圖表的寬度多一些。
+export type GridConfig = {
+  cols: number;
+  rowHeight: number;
+  margin: [number, number];
+  containerPadding: [number, number];
+};
+
+export function gridConfigFor(cols: number): GridConfig {
+  const reflowed = cols !== GRID_COLS;
+  return {
+    cols,
+    rowHeight: 80,
+    margin: reflowed ? [12, 12] : [16, 16],
+    containerPadding: [0, 0],
+  };
+}
+
 const NARROW_WIDTH = 4;
 
 export function reflowLayout(layout: readonly LayoutItem[], cols: number): LayoutItem[] {

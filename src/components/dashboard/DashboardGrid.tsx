@@ -12,7 +12,12 @@ import { useDashboardFilterValues } from '../../hooks/useDashboardFilterValues.t
 import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { Dashboard, Dataset, DatasetRows } from '../../types/index.ts';
-import { GRID_COLS, columnsFor, reflowLayout } from '../../utils/responsiveLayout.ts';
+import {
+  GRID_COLS,
+  columnsFor,
+  gridConfigFor,
+  reflowLayout,
+} from '../../utils/responsiveLayout.ts';
 import { sameLayout } from '../../utils/widgetEditing.ts';
 import { WidgetCard } from '../widgets/WidgetCard.tsx';
 
@@ -49,12 +54,7 @@ export function DashboardGrid({ dashboard, dataset, rows }: Props) {
         <GridLayout
           width={width}
           layout={reflowLayout(dashboard.layout, cols)}
-          gridConfig={{
-            cols,
-            rowHeight: 80,
-            margin: reflowed ? [12, 12] : [16, 16],
-            containerPadding: [0, 0],
-          }}
+          gridConfig={gridConfigFor(cols)}
           dragConfig={{ enabled: movable, handle: '.widget-drag-handle' }}
           resizeConfig={{ enabled: movable }}
           onLayoutChange={handleLayoutChange}

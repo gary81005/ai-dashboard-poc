@@ -1,5 +1,4 @@
-// 最外層版面：頂部 AppBar（「儀表板」「資料集」兩個分頁、帳號與登出）＋ 主內容區。
-// AppBar 用 theme 的 header 色（深色漸層、白字、品牌黃的選取標示），深淺色模式都一樣。
+// 最外層版面：頂部 HeaderBar（「儀表板」「資料集」兩個分頁、帳號與登出）＋ 主內容區。
 // 窄螢幕（ADR 0009）：手機隱藏產品名稱、md 以下隱藏 email，主內容區的留白縮小。
 // 未登入時只顯示登入頁（ADR 0007）。
 //
@@ -8,15 +7,14 @@
 
 import type { ReactNode } from 'react';
 import Alert from '@mui/material/Alert';
-import AppBar from '@mui/material/AppBar';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import Snackbar from '@mui/material/Snackbar';
 import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
-import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
+import { HeaderBar } from './components/HeaderBar.tsx';
 import { UnsavedChangesDialog } from './components/dashboard/UnsavedChangesDialog.tsx';
 import { DashboardListPage } from './pages/DashboardListPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
@@ -101,59 +99,34 @@ function App() {
 
   return (
     <Box sx={{ minHeight: '100svh', bgcolor: 'background.default' }}>
-      <AppBar
-        position='sticky'
-        elevation={0}
-        sx={(theme) => {
-          const { header } = (theme.vars ?? theme).palette;
-          return {
-            background: header.background,
-            color: header.text,
-            // 底部一條品牌黃的細線（官網的 clinico-fill-golden）。
-            borderBottom: `3px solid ${header.accent}`,
-            '& .MuiTab-root': { color: header.muted },
-            '& .MuiTab-root.Mui-selected': { color: header.accent },
-            '& .MuiTabs-indicator': { bgcolor: header.accent },
-          };
-        }}
-      >
-        <Toolbar sx={{ gap: { xs: 1, sm: 3 } }}>
+      <HeaderBar>
+        <Tabs value={tab} onChange={(_, value: 'dashboards' | 'datasets') => navigate(value)}>
+          <Tab value='dashboards' label='儀表板' />
+          <Tab value='datasets' label='資料集' />
+        </Tabs>
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography
-            variant='h6'
-            component='h1'
+            variant='body2'
             noWrap
-            sx={{ fontWeight: 700, letterSpacing: 1, display: { xs: 'none', sm: 'block' } }}
+            sx={(theme) => ({
+              color: (theme.vars ?? theme).palette.header.muted,
+              display: { xs: 'none', md: 'block' },
+            })}
           >
-            個人化儀表板
+            {email}
           </Typography>
-          <Tabs value={tab} onChange={(_, value: 'dashboards' | 'datasets') => navigate(value)}>
-            <Tab value='dashboards' label='儀表板' />
-            <Tab value='datasets' label='資料集' />
-          </Tabs>
-          <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography
-              variant='body2'
-              noWrap
-              sx={(theme) => ({
-                color: (theme.vars ?? theme).palette.header.muted,
-                display: { xs: 'none', md: 'block' },
-              })}
-            >
-              {email}
-            </Typography>
-            <Button
-              variant='outlined'
-              onClick={() => leave(() => void handleSignOut())}
-              sx={(theme) => {
-                const { header } = (theme.vars ?? theme).palette;
-                return { color: header.accent, borderColor: header.accent };
-              }}
-            >
-              登出
-            </Button>
-          </Box>
-        </Toolbar>
-      </AppBar>
+          <Button
+            variant='outlined'
+            onClick={() => leave(() => void handleSignOut())}
+            sx={(theme) => {
+              const { header } = (theme.vars ?? theme).palette;
+              return { color: header.accent, borderColor: header.accent };
+            }}
+          >
+            登出
+          </Button>
+        </Box>
+      </HeaderBar>
       <Box component='main' sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
         {view === 'dashboards' && <DashboardListPage />}
         {view === 'datasets' && <DatasetLibraryPage />}

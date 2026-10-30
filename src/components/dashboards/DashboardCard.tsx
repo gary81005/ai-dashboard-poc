@@ -52,8 +52,11 @@ export function DashboardCard({ dashboard, dataset, onOpen }: Props) {
             {dataset ? `資料集：${dataset.name}` : '資料集遺失'}
           </Typography>
           <Typography variant='body2' color='text.secondary'>
-            {dashboard.widgets.length} 個元件・更新於{' '}
-            {dayjs(dashboard.updatedAt).format('YYYY-MM-DD HH:mm')}
+            {dashboard.widgets.length} 個元件
+          </Typography>
+          {/* 更新時間另起一行，卡片窄時不會和元件數擠在一起斷開。 */}
+          <Typography variant='body2' color='text.secondary'>
+            更新於 ： {dayjs(dashboard.updatedAt).format('YYYY-MM-DD HH:mm')}
           </Typography>
         </CardContent>
       </CardActionArea>
