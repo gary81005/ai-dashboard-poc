@@ -2,25 +2,10 @@
 
 import { ScatterChart } from '@mui/x-charts/ScatterChart';
 import { formatCompact, formatValue } from '../../utils/format.ts';
-import { queryScatter } from '../../utils/query.ts';
-import type { QueryContext } from '../../utils/query.ts';
-import type { ScatterWidget as ScatterWidgetConfig } from '../../types/index.ts';
-import { runQuery } from '../../utils/runQuery.ts';
-import { ChartArea, QueryFailure, WidgetMessage } from './WidgetParts.tsx';
+import type { ScatterResult } from '../../utils/query.ts';
+import { ChartArea } from './WidgetParts.tsx';
 
-type Props = { widget: ScatterWidgetConfig; ctx: QueryContext };
-
-export function ScatterWidget({ widget, ctx }: Props) {
-  const { x, y, color, detail } = widget.encoding;
-  if (!x || !y) return <WidgetMessage>請設定 X 軸與 Y 軸的數值欄位</WidgetMessage>;
-
-  const outcome = runQuery(() => queryScatter(ctx, x, y, color?.field, detail?.field));
-  if (!outcome.ok) return <QueryFailure outcome={outcome} />;
-  const result = outcome.value;
-  if (result.series.every((s) => s.points.length === 0)) {
-    return <WidgetMessage>沒有可以畫成點的數值資料</WidgetMessage>;
-  }
-
+export function ScatterWidget({ result }: { result: ScatterResult }) {
   // 點的 id → 明細名稱，供 tooltip 顯示「TP01：…」。
   const labels = new Map(
     result.series.flatMap((s) => s.points.map((p) => [p.id, p.label] as const)),

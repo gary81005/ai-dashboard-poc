@@ -13,30 +13,14 @@ import { ChartsXAxis } from '@mui/x-charts/ChartsXAxis';
 import { ChartsYAxis } from '@mui/x-charts/ChartsYAxis';
 import { LinePlot, MarkPlot } from '@mui/x-charts/LineChart';
 import { formatCompact, formatValue } from '../../utils/format.ts';
-import { queryCategorical } from '../../utils/query.ts';
-import type { QueryContext, ResolvedMeasure } from '../../utils/query.ts';
+import type { CategoricalResult, ResolvedMeasure } from '../../utils/query.ts';
 import type { ComboWidget as ComboWidgetConfig } from '../../types/index.ts';
-import { runQuery } from '../../utils/runQuery.ts';
-import { ChartArea, QueryFailure, WidgetMessage } from './WidgetParts.tsx';
+import { ChartArea } from './WidgetParts.tsx';
 
-type Props = { widget: ComboWidgetConfig; ctx: QueryContext };
+type Props = { widget: ComboWidgetConfig; result: CategoricalResult };
 
-export function ComboWidget({ widget, ctx }: Props) {
-  const { x, y } = widget.encoding;
-  if (!x || y.length === 0)
-    return <WidgetMessage>請設定 X 軸，並放入至少一個數值欄位</WidgetMessage>;
-
-  const outcome = runQuery(() =>
-    queryCategorical(
-      ctx,
-      x.field,
-      y.map(({ field, agg }) => ({ field, agg })),
-    ),
-  );
-  if (!outcome.ok) return <QueryFailure outcome={outcome} />;
-  const result = outcome.value;
-  if (result.categories.length === 0) return <WidgetMessage>沒有符合條件的資料</WidgetMessage>;
-
+export function ComboWidget({ widget, result }: Props) {
+  const { y } = widget.encoding;
   const stacked = widget.options?.stacked === true;
   const series = result.series.map((s) => {
     const { mark, axis } = y[s.measureIndex];

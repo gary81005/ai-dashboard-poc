@@ -2,21 +2,14 @@
 
 import { Gauge } from '@mui/x-charts/Gauge';
 import { formatValue } from '../../utils/format.ts';
-import { queryValue } from '../../utils/query.ts';
-import type { QueryContext } from '../../utils/query.ts';
+import type { ValueResult } from '../../utils/query.ts';
 import type { GaugeWidget as GaugeWidgetConfig } from '../../types/index.ts';
-import { runQuery } from '../../utils/runQuery.ts';
-import { ChartArea, QueryFailure, WidgetMessage } from './WidgetParts.tsx';
+import { ChartArea, WidgetMessage } from './WidgetParts.tsx';
 
-type Props = { widget: GaugeWidgetConfig; ctx: QueryContext };
+type Props = { widget: GaugeWidgetConfig; result: ValueResult };
 
-export function GaugeWidget({ widget, ctx }: Props) {
-  const { value } = widget.encoding;
-  if (!value) return <WidgetMessage>請放入一個數值欄位</WidgetMessage>;
-
-  const outcome = runQuery(() => queryValue(ctx, value));
-  if (!outcome.ok) return <QueryFailure outcome={outcome} />;
-  const result = outcome.value;
+export function GaugeWidget({ widget, result }: Props) {
+  // computeWidget 已把沒有值的情況轉成提示；這裡再擋一次，讓型別收窄成數字。
   if (result.value === null) return <WidgetMessage>沒有可以顯示的數值</WidgetMessage>;
 
   // 預設範圍（ADR 0005）：比率以小數儲存，所以是 0～1；其他是 0 到目前值的 1.5 倍。

@@ -2,7 +2,7 @@
 // 每張卡片有用實際資料畫的縮圖、推薦理由，第一張標示「最推薦」。
 // 點卡片新增這個元件，放在版面最下方並選取它，接著可以在元件設定面板微調。
 //
-// 規則在 utils/recommend.ts；縮圖直接用 WidgetBody 畫整張表的資料（不套用篩選）。
+// 規則在 utils/recommend.ts；縮圖直接用 computeWidget + WidgetBody 畫整張表的資料（不套用篩選）。
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -17,6 +17,7 @@ import { WIDGET_TYPE_LABELS } from '../../constants/widgetTypes.ts';
 import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { Dashboard, Dataset, DatasetRows, Widget } from '../../types/index.ts';
+import { computeWidget } from '../../utils/computeWidget.ts';
 import { profilesOf } from '../../utils/fieldKinds.ts';
 import { findTable } from '../../utils/fields.ts';
 import { createId } from '../../utils/ids.ts';
@@ -92,7 +93,13 @@ export function RecommendPanel({ dashboard, dataset, rows, checked, onClear }: P
                     }}
                     aria-hidden='true'
                   >
-                    <WidgetBody widget={widget} ctx={{ table, rows: tableRows, filters: [] }} />
+                    {/* 推薦不會產生文字元件；型別上仍要排除。 */}
+                    {widget.type !== 'text' && (
+                      <WidgetBody
+                        widget={widget}
+                        result={computeWidget(widget, { table, rows: tableRows, filters: [] })}
+                      />
+                    )}
                   </Box>
                   <Typography variant='caption' color='text.secondary'>
                     {reason}

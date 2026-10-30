@@ -35,7 +35,7 @@ Two dependencies are unmaintained — `exceljs` and `react-dnd` — so don't upg
 - `src/constants/` — sample dashboard fixture, the per-type slot catalogue (`widgetTypes.ts`, drives the editor), the drag type.
 - `src/components/` — `widgets/` (one renderer per widget type), `editor/` (field panel, drop slots, widget settings — edit mode), `dashboard/` (grid, rebind dialog), `dashboards/` (list cards, create/import dialogs), `datasets/`. `src/pages/` has one component per screen; `src/hooks/` holds `useDatasetRows`.
 
-Widget components must not throw during render: queries go through `utils/runQuery.ts`, which turns a `MissingFieldError` into a "欄位遺失" message instead of a crash.
+Widget components only draw: `utils/computeWidget.ts` turns a widget + `QueryContext` into a JSON-serializable `WidgetResult` (data, or a message for incomplete setup / no data / errors), and `WidgetBody` dispatches it to the renderer. Queries run through `utils/runQuery.ts` inside it, so a `MissingFieldError` becomes a "欄位遺失" message instead of a crash. Keep results plain JSON — share links store them (ADR 0012).
 
 MUI X chart axes use `height: 'auto'` / `width: 'auto'`. The fixed defaults (25px / 45px) are too small for CJK tick labels and MUI ellipsizes them to an empty string. Exception: an x-axis with a `label` needs a fixed height, because auto-sizing ignores the title.
 

@@ -7,22 +7,14 @@ import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { SparkLineChart } from '@mui/x-charts/SparkLineChart';
 import { displayUnit, formatCompact, formatValue } from '../../utils/format.ts';
-import { queryValue } from '../../utils/query.ts';
-import type { QueryContext } from '../../utils/query.ts';
+import type { ValueResult } from '../../utils/query.ts';
 import type { KpiWidget as KpiWidgetConfig } from '../../types/index.ts';
-import { runQuery } from '../../utils/runQuery.ts';
 import { TONE_LABELS, toneOf } from '../../utils/thresholds.ts';
-import { ChartArea, QueryFailure, WidgetMessage } from './WidgetParts.tsx';
+import { ChartArea } from './WidgetParts.tsx';
 
-type Props = { widget: KpiWidgetConfig; ctx: QueryContext };
+type Props = { widget: KpiWidgetConfig; result: ValueResult };
 
-export function KpiWidget({ widget, ctx }: Props) {
-  const { value, trend } = widget.encoding;
-  if (!value) return <WidgetMessage>請放入一個數值欄位</WidgetMessage>;
-
-  const outcome = runQuery(() => queryValue(ctx, value, trend?.field));
-  if (!outcome.ok) return <QueryFailure outcome={outcome} />;
-  const result = outcome.value;
+export function KpiWidget({ widget, result }: Props) {
   const { field, agg } = result.measure;
   const unit = agg === 'count' ? undefined : displayUnit(field);
   const tone = toneOf(result.value, widget.options?.thresholds);

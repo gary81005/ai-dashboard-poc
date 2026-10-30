@@ -2,22 +2,14 @@
 
 import { PieChart } from '@mui/x-charts/PieChart';
 import { formatValue } from '../../utils/format.ts';
-import { queryPie } from '../../utils/query.ts';
-import type { QueryContext } from '../../utils/query.ts';
+import type { PieResult } from '../../utils/query.ts';
 import type { PieWidget as PieWidgetConfig } from '../../types/index.ts';
-import { runQuery } from '../../utils/runQuery.ts';
-import { ChartArea, QueryFailure, WidgetMessage } from './WidgetParts.tsx';
+import { ChartArea } from './WidgetParts.tsx';
 
-type Props = { widget: PieWidgetConfig; ctx: QueryContext };
+type Props = { widget: PieWidgetConfig; result: PieResult };
 
-export function PieWidget({ widget, ctx }: Props) {
-  const { category, value } = widget.encoding;
-  if (!category || !value) return <WidgetMessage>請設定分類欄位與數值欄位</WidgetMessage>;
-
-  const outcome = runQuery(() => queryPie(ctx, category.field, value));
-  if (!outcome.ok) return <QueryFailure outcome={outcome} />;
-  const { items, measure, unweightedRatio } = outcome.value;
-  if (items.length === 0) return <WidgetMessage>沒有大於 0 的數值可以畫圓餅圖</WidgetMessage>;
+export function PieWidget({ widget, result }: Props) {
+  const { items, measure, unweightedRatio } = result;
 
   return (
     <ChartArea unweightedRatio={unweightedRatio}>

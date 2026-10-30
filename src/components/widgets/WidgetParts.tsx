@@ -1,11 +1,11 @@
-// widget 共用的小元件：提示訊息（WidgetMessage）、查詢失敗訊息（QueryFailure）、圖表容器（ChartArea）。
+// widget 共用的小元件：提示訊息（WidgetMessage）、圖表容器（ChartArea）。
+// 查詢失敗的訊息文字由 utils/computeWidget.ts 產生，同樣用 WidgetMessage 顯示。
 
 import type { ReactNode } from 'react';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
 import Typography from '@mui/material/Typography';
-import type { QueryOutcome } from '../../utils/runQuery.ts';
 
 export function WidgetMessage({
   children,
@@ -20,20 +20,6 @@ export function WidgetMessage({
         {children}
       </Typography>
     </Box>
-  );
-}
-
-export function QueryFailure({
-  outcome,
-}: {
-  outcome: Extract<QueryOutcome<unknown>, { ok: false }>;
-}) {
-  return (
-    <WidgetMessage tone='error'>
-      {outcome.missing
-        ? `欄位遺失：「${outcome.missing.header}」不在目前的資料表中，請重新指定欄位`
-        : `無法產生圖表：${outcome.message}`}
-    </WidgetMessage>
   );
 }
 

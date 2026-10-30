@@ -1,4 +1,4 @@
-// 資料表格（MUI X Data Grid）：明細或分組摘要由 queryTable 決定；數字欄位依欄位格式顯示並靠右對齊。
+// 資料表格（MUI X Data Grid）：明細或分組摘要由 queryTable 決定（經 computeWidget 算好傳入）；數字欄位依欄位格式顯示並靠右對齊。
 //
 // 樣式選項（ADR 0008）：比率欄位依門檻變色、低於門檻的整列標色、預設依第一個數值欄排序、
 // 在表格底部顯示合計（合計列和分組用同一套彙總規則，比率欄位是加權比率）。
@@ -8,13 +8,12 @@ import Typography from '@mui/material/Typography';
 import { DataGrid, GridFooterContainer, GridPagination } from '@mui/x-data-grid';
 import type { GridColDef, GridSlotProps } from '@mui/x-data-grid';
 import { formatValue } from '../../utils/format.ts';
-import { categoryKey, queryTable } from '../../utils/query.ts';
-import type { QueryContext, TableResultColumn } from '../../utils/query.ts';
+import { categoryKey } from '../../utils/query.ts';
+import type { TableResult, TableResultColumn } from '../../utils/query.ts';
 import type { CellValue, TableWidget as TableWidgetConfig } from '../../types/index.ts';
-import { runQuery } from '../../utils/runQuery.ts';
 import { toneOf } from '../../utils/thresholds.ts';
 import { activeLabels, labelOf } from '../../utils/valueLabels.ts';
-import { ChartArea, QueryFailure, WidgetMessage } from './WidgetParts.tsx';
+import { ChartArea } from './WidgetParts.tsx';
 
 declare module '@mui/x-data-grid' {
   interface FooterPropsOverrides {
@@ -22,7 +21,7 @@ declare module '@mui/x-data-grid' {
   }
 }
 
-type Props = { widget: TableWidgetConfig; ctx: QueryContext };
+type Props = { widget: TableWidgetConfig; result: TableResult };
 
 const isNumeric = (c: TableResultColumn) => c.agg !== undefined || c.field.role === 'measure';
 const format = (c: TableResultColumn, value: number | null) =>
@@ -37,13 +36,7 @@ function formatCell(c: TableResultColumn, value: CellValue): CellValue {
   return typeof value === 'number' ? format(c, value) : value;
 }
 
-export function TableWidget({ widget, ctx }: Props) {
-  const { columns } = widget.encoding;
-  if (columns.length === 0) return <WidgetMessage>請放入至少一個欄位</WidgetMessage>;
-
-  const outcome = runQuery(() => queryTable(ctx, columns));
-  if (!outcome.ok) return <QueryFailure outcome={outcome} />;
-  const result = outcome.value;
+export function TableWidget({ widget, result }: Props) {
   const options = widget.options;
   const thresholds = options?.thresholds;
   // 門檻只套用在比率欄位（達成率、覆蓋率、健康度…）。

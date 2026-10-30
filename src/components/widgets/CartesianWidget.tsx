@@ -1,31 +1,19 @@
 // 折線圖與長條圖（含面積、堆疊、橫式）。資料來自 queryCategorical，每個系列對應一個量值（× 分組值）。
-// 長條圖另可依數值排序、只留前 N 個，以及依門檻為長條上色（ADR 0008），三者合起來就是排名圖。
+// 長條圖另可依數值排序、只留前 N 個（在 computeWidget 處理），以及依門檻為長條上色（ADR 0008），
+// 三者合起來就是排名圖。
 
 import { useTheme } from '@mui/material/styles';
 import { BarChart } from '@mui/x-charts/BarChart';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { formatCompact, formatValue } from '../../utils/format.ts';
-import { queryCategorical, sortCategorical } from '../../utils/query.ts';
-import type { QueryContext } from '../../utils/query.ts';
+import type { CategoricalResult } from '../../utils/query.ts';
 import type { BarWidget, LineWidget } from '../../types/index.ts';
-import { runQuery } from '../../utils/runQuery.ts';
-import { ChartArea, QueryFailure, WidgetMessage } from './WidgetParts.tsx';
+import { ChartArea } from './WidgetParts.tsx';
 
-type Props = { widget: LineWidget | BarWidget; ctx: QueryContext };
+type Props = { widget: LineWidget | BarWidget; result: CategoricalResult };
 
-export function CartesianWidget({ widget, ctx }: Props) {
+export function CartesianWidget({ widget, result }: Props) {
   const theme = useTheme();
-  const { x, y, group } = widget.encoding;
-  if (!x || y.length === 0)
-    return <WidgetMessage>請設定 X 軸，並放入至少一個數值欄位</WidgetMessage>;
-
-  const outcome = runQuery(() => queryCategorical(ctx, x.field, y, group?.field));
-  if (!outcome.ok) return <QueryFailure outcome={outcome} />;
-  const result =
-    widget.type === 'bar'
-      ? sortCategorical(outcome.value, widget.options?.sort, widget.options?.limit)
-      : outcome.value;
-  if (result.categories.length === 0) return <WidgetMessage>沒有符合條件的資料</WidgetMessage>;
 
   // 座標軸大小用 'auto'：MUI 預設的軸寬高（25px／45px）放不下中文標籤，
   // 超出的文字會被截成空白。

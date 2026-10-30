@@ -15,6 +15,7 @@ import { profilesOf } from '../../utils/fieldKinds.ts';
 import type { SelectedValues } from '../../utils/dashboardFilters.ts';
 import { findTable, resolveField } from '../../utils/fields.ts';
 import { labelOf, withRawValues } from '../../utils/valueLabels.ts';
+import { computeWidget } from '../../utils/computeWidget.ts';
 import { checkWidget } from '../../utils/widgetChecks.ts';
 import { activeFilters, hasAnyField } from '../../utils/widgetEditing.ts';
 import { WidgetBody } from './WidgetBody.tsx';
@@ -83,7 +84,11 @@ export function WidgetCard({
     body = (
       <WidgetBody
         widget={widget}
-        ctx={{ table, rows: tableRows, filters: [...widget.filters, ...applied] }}
+        result={computeWidget(widget, {
+          table,
+          rows: tableRows,
+          filters: [...widget.filters, ...applied],
+        })}
       />
     );
   } else {
