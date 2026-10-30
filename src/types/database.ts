@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      dashboard_shares: {
+        Row: {
+          created_at: string
+          dashboard_id: string
+          expires_at: string | null
+          snapshot: Json
+          snapshot_at: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dashboard_id: string
+          expires_at?: string | null
+          snapshot: Json
+          snapshot_at?: string
+          token?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          dashboard_id?: string
+          expires_at?: string | null
+          snapshot?: Json
+          snapshot_at?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_shares_user_id_dashboard_id_fkey"
+            columns: ["user_id", "dashboard_id"]
+            isOneToOne: true
+            referencedRelation: "dashboards"
+            referencedColumns: ["user_id", "id"]
+          },
+        ]
+      }
       dashboards: {
         Row: {
           body: Json
@@ -108,7 +146,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_shared_dashboard: { Args: { p_token: string }; Returns: Json }
+      save_dashboard: {
+        Args: {
+          p_body: Json
+          p_id: string
+          p_schema_version: number
+          p_snapshot?: Json
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
