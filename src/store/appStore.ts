@@ -31,6 +31,15 @@ export type FieldPatch = {
   showValueLabels?: boolean;
 };
 
+// 自己的一條分享連結（dashboard_shares，ADR 0012），不含分享結果本身。
+// expiresAt 是 null 代表永不過期；snapshotAt 是分享結果最後一次寫入的時間。
+export type ShareLink = {
+  dashboardId: string;
+  token: string;
+  expiresAt: string | null;
+  snapshotAt: string;
+};
+
 // 資料集與儀表板的載入狀態。idle = 尚未登入或剛登出。
 export type LoadStatus =
   | { status: 'idle' }
@@ -46,6 +55,8 @@ type AppState = {
   draftBase: Dashboard | null;
   // 存檔進行中：頁面與離開確認對話框共用，存檔期間兩邊的「儲存」「捨棄」都不能再按。
   saving: boolean;
+  // 自己的分享連結，key 是儀表板 id（一個儀表板最多一條）。儲存時有連結才重算分享結果。
+  shares: Record<string, ShareLink>;
   loadStatus: LoadStatus;
   setLoadStatus: (status: LoadStatus) => void;
   setDatasets: (datasets: Dataset[]) => void;
@@ -56,6 +67,9 @@ type AppState = {
   setTableHidden: (datasetId: string, tableKey: string, hidden: boolean) => void;
   updateField: (datasetId: string, tableKey: string, header: string, patch: FieldPatch) => void;
   setDashboards: (dashboards: Dashboard[]) => void;
+  setShares: (shares: ShareLink[]) => void;
+  putShare: (share: ShareLink) => void;
+  removeShare: (dashboardId: string) => void;
   addDashboard: (dashboard: Dashboard) => void;
   removeDashboard: (dashboardId: string) => void;
   setActiveDashboard: (dashboardId: string | null) => void;
@@ -123,6 +137,12 @@ function patchField(field: Field, patch: FieldPatch): Field {
   return next;
 }
 
+function withoutKey<T>(record: Record<string, T>, key: string): Record<string, T> {
+  const rest = { ...record };
+  delete rest[key];
+  return rest;
+}
+
 // 只替換指定資料集裡的指定資料表，其餘維持原物件。
 function mapTable(
   datasets: Dataset[],
@@ -159,6 +179,7 @@ export const useAppStore = create<AppState>()((set) => ({
   activeDashboardId: null,
   draftBase: null,
   saving: false,
+  shares: {},
   loadStatus: { status: 'idle' },
 
   setLoadStatus: (loadStatus) => set({ loadStatus }),
@@ -185,10 +206,15 @@ export const useAppStore = create<AppState>()((set) => ({
     })),
 
   setDashboards: (dashboards) => set({ dashboards, activeDashboardId: null, draftBase: null }),
+  setShares: (shares) => set({ shares: Object.fromEntries(shares.map((x) => [x.dashboardId, x])) }),
+  putShare: (share) => set((s) => ({ shares: { ...s.shares, [share.dashboardId]: share } })),
+  removeShare: (dashboardId) => set((s) => ({ shares: withoutKey(s.shares, dashboardId) })),
   addDashboard: (dashboard) => set((s) => ({ dashboards: [...s.dashboards, dashboard] })),
+  // 資料庫刪除儀表板時，分享連結由外鍵 cascade 一起刪除，這裡同步拿掉。
   removeDashboard: (dashboardId) =>
     set((s) => ({
       dashboards: s.dashboards.filter((d) => d.id !== dashboardId),
+      shares: withoutKey(s.shares, dashboardId),
       activeDashboardId: s.activeDashboardId === dashboardId ? null : s.activeDashboardId,
     })),
   setActiveDashboard: (dashboardId) => set({ activeDashboardId: dashboardId, draftBase: null }),

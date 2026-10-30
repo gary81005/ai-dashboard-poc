@@ -1,7 +1,7 @@
 // 格線上的一格：標題列（標題、篩選按鈕、編輯模式的刪除）、說明、生效中的篩選摘要、圖表本體。
 //
-// 也負責處理「還沒設定欄位」和「資料表不在資料集中」兩種狀況。
-// 查詢用的篩選 = widget 自己的篩選 + 儀表板篩選裡這張資料表有對應欄位的部分（ADR 0008）。
+// 要顯示的內容（資料表、篩選摘要、圖表結果，含「還沒設定欄位」「資料表不在資料集中」的提示）
+// 由 utils/widgetView.ts 算出，分享結果也用同一個函式（ADR 0012）。
 // 編輯模式下標題是 react-grid-layout 的拖曳把手（.widget-drag-handle），點擊卡片會選取這個元件；
 // 有警告時標題旁加 ⚠（ADR 0010 §7 ⑤，內容與「改用建議」在元件設定面板）。
 
@@ -10,17 +10,13 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import type { DashboardFilter, Dataset, DatasetRows, Widget } from '../../types/index.ts';
-import { filtersForTable } from '../../utils/dashboardFilters.ts';
-import { profilesOf } from '../../utils/fieldKinds.ts';
 import type { SelectedValues } from '../../utils/dashboardFilters.ts';
-import { findTable, resolveField } from '../../utils/fields.ts';
-import { labelOf, withRawValues } from '../../utils/valueLabels.ts';
-import { computeWidget } from '../../utils/computeWidget.ts';
+import { profilesOf } from '../../utils/fieldKinds.ts';
 import { checkWidget } from '../../utils/widgetChecks.ts';
-import { activeFilters, hasAnyField } from '../../utils/widgetEditing.ts';
+import { hasAnyField } from '../../utils/widgetEditing.ts';
+import { widgetView } from '../../utils/widgetView.ts';
 import { WidgetBody } from './WidgetBody.tsx';
 import { WidgetFilterControl } from './WidgetFilterControl.tsx';
-import { WidgetMessage } from './WidgetParts.tsx';
 import { TextWidget } from './TextWidget.tsx';
 
 type Props = {
@@ -48,21 +44,11 @@ export function WidgetCard({
   onRemove,
   onChange,
 }: Props) {
-  const sourceTable = findTable(dataset, widget.table);
-  // 選了「顯示原始值」的元件：整張表停用值標籤後再查詢、篩選與顯示（ADR 0011）。
-  const table = sourceTable && widget.rawValues ? withRawValues(sourceTable) : sourceTable;
-  const tableRows = table ? rows[table.key] : undefined;
-
-  const filterSummary = activeFilters(widget)
-    .map((f) => {
-      const field = table && resolveField(table, f.field);
-      const values = f.values.map((v) => (field ? labelOf(field, String(v)) : String(v)));
-      return `${f.field.header}：${values.join('、')}`;
-    })
-    .join('・');
-  const { applied, skipped } = table
-    ? filtersForTable(table, dashboardFilters, filterValues)
-    : { applied: [], skipped: [] };
+  const { table, tableRows, filterSummary, skipped, result } = widgetView(widget, dataset, rows, {
+    dashboardFilters,
+    filterValues,
+    editing,
+  });
   // 只在編輯模式檢查；檢視模式不顯示警告。
   const problems =
     editing && table && tableRows
@@ -71,33 +57,12 @@ export function WidgetCard({
         )
       : [];
 
-  let body;
-  if (widget.type === 'text') {
-    body = <TextWidget widget={widget} editing={editing} />;
-  } else if (!hasAnyField(widget)) {
-    body = (
-      <WidgetMessage>
-        {editing ? '把右側欄位清單的欄位拖到元件設定的放置區' : '尚未設定欄位'}
-      </WidgetMessage>
+  const body =
+    widget.type === 'text' ? (
+      <TextWidget widget={widget} editing={editing} />
+    ) : (
+      result && <WidgetBody widget={widget} result={result} />
     );
-  } else if (table && tableRows) {
-    body = (
-      <WidgetBody
-        widget={widget}
-        result={computeWidget(widget, {
-          table,
-          rows: tableRows,
-          filters: [...widget.filters, ...applied],
-        })}
-      />
-    );
-  } else {
-    body = (
-      <WidgetMessage tone='error'>
-        資料表「{widget.table}」不在目前的資料集中，請重新指定
-      </WidgetMessage>
-    );
-  }
 
   return (
     <Paper
