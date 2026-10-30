@@ -138,6 +138,8 @@ docs/adr/             架構決策紀錄
   - [0008](docs/adr/0008-dashboard-filters-weighted-ratios.md) 儀表板篩選、加權比率（schema v2）
   - [0009](docs/adr/0009-responsive-layout.md) 響應式版面
   - [0010](docs/adr/0010-chart-recommendation-rules.md) 欄位組合與圖表推薦規則
+  - [0011](docs/adr/0011-value-labels.md) 值標籤（schema v3）
+  - [0012](docs/adr/0012-share-links.md) 分享連結（實作中）
 - [`CLAUDE.md`](CLAUDE.md)：開發規範與工具鏈限制。
 
 ## 開發注意事項
