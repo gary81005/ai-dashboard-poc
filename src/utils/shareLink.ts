@@ -19,3 +19,23 @@ export function isShareToken(token: string): boolean {
 export function shareUrl(origin: string, token: string): string {
   return `${origin}/?${SHARE_PARAM}=${token}`;
 }
+
+// 到期日的選項（ADR 0012 §4）：建立時預設 30 天；之後可以延長或縮短，都從今天起算，網址不變。
+export const EXPIRY_OPTIONS: ReadonlyArray<{ days: number | null; label: string }> = [
+  { days: 7, label: '7 天' },
+  { days: 30, label: '30 天' },
+  { days: 90, label: '90 天' },
+  { days: null, label: '永不過期' },
+];
+export const DEFAULT_EXPIRY_DAYS = 30;
+
+// days 是 null 代表永不過期，回傳 null（資料庫的 expires_at）。
+export function expiryFrom(days: number | null, now: Date): string | null {
+  if (days === null) return null;
+  return new Date(now.getTime() + days * 24 * 60 * 60 * 1000).toISOString();
+}
+
+// 連結還能不能打開（撤銷的連結已經刪除，不會出現在這裡）。
+export function isShareActive(share: { expiresAt: string | null }, now: Date): boolean {
+  return share.expiresAt === null || new Date(share.expiresAt).getTime() > now.getTime();
+}

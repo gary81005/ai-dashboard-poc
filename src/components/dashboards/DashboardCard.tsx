@@ -1,4 +1,5 @@
 // 儀表板清單上的一張卡片：點擊開啟，另有複製、匯出 JSON、刪除（需確認）。
+// 有還沒過期的分享連結時，名稱旁顯示「分享中」，提醒這個儀表板正對外公開（ADR 0012）。
 
 import { useState } from 'react';
 import dayjs from 'dayjs';
@@ -8,23 +9,31 @@ import Card from '@mui/material/Card';
 import CardActionArea from '@mui/material/CardActionArea';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogTitle from '@mui/material/DialogTitle';
+import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { createDashboard, deleteDashboard } from '../../services/dashboardService.ts';
 import { downloadJson } from '../../services/download.ts';
+import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { Dashboard, Dataset } from '../../types/index.ts';
 import { buildExport, cloneDashboard } from '../../utils/dashboardTransfer.ts';
+import { isShareActive } from '../../utils/shareLink.ts';
 
 type Props = { dashboard: Dashboard; dataset: Dataset | undefined; onOpen: () => void };
 
 export function DashboardCard({ dashboard, dataset, onOpen }: Props) {
   const [confirming, setConfirming] = useState(false);
   const notify = useUiStore((s) => s.notify);
+  const share = useAppStore((s) => s.shares[dashboard.id]);
+  // 卡片掛上時的時間；回到清單頁會重新掛上，所以不會停在很久以前。
+  const [now] = useState(() => new Date());
+  const shared = share !== undefined && isShareActive(share, now);
 
   const run = async (action: () => Promise<void>) => {
     try {
@@ -45,9 +54,12 @@ export function DashboardCard({ dashboard, dataset, onOpen }: Props) {
     <Card variant='outlined' sx={{ display: 'flex', flexDirection: 'column' }}>
       <CardActionArea onClick={onOpen} sx={{ flex: 1 }}>
         <CardContent>
-          <Typography variant='h6' component='h3' gutterBottom noWrap>
-            {dashboard.name}
-          </Typography>
+          <Stack direction='row' spacing={1} sx={{ alignItems: 'center', mb: 0.75 }}>
+            <Typography variant='h6' component='h3' noWrap sx={{ minWidth: 0 }}>
+              {dashboard.name}
+            </Typography>
+            {shared && <Chip size='small' color='info' variant='outlined' label='分享中' />}
+          </Stack>
           <Typography variant='body2' color={dataset ? 'text.secondary' : 'error'}>
             {dataset ? `資料集：${dataset.name}` : '資料集遺失'}
           </Typography>

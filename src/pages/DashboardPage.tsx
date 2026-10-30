@@ -1,5 +1,5 @@
 // 單一儀表板頁，分成兩種模式：
-//   - 檢視模式：只顯示格線上的 widget（DashboardGrid），可切換資料來源、匯出 JSON
+//   - 檢視模式：只顯示格線上的 widget（DashboardGrid），可切換資料來源、匯出 JSON、分享（ADR 0012）
 //   - 編輯模式：EditWorkspace 三欄版面 = 格線｜欄位清單｜元件設定，可拖拉欄位、新增與移動元件
 //
 // 兩種模式下的修改（含檢視模式的篩選、切換資料來源）都先只存在記憶體，按「儲存」才寫進 Supabase
@@ -8,7 +8,7 @@
 // 結構：DashboardPage（標題列與對話框）→ DashboardContent（等資料列載入）→ DashboardGrid 或 EditWorkspace。
 //
 // 響應式（ADR 0009）：編輯模式需要寬度 1200px 以上（lg），更窄時「編輯」按鈕停用，編輯中變窄就自動回到
-// 檢視模式（未儲存的變更仍保留）。md 以下，標題列換行，「切換資料來源」「匯出 JSON」收進「更多」選單。
+// 檢視模式（未儲存的變更仍保留）。md 以下，標題列換行，「分享」「切換資料來源」「匯出 JSON」收進「更多」選單。
 
 import { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
@@ -32,6 +32,7 @@ import type { Theme } from '@mui/material/styles';
 import { DashboardFilterBar } from '../components/dashboard/DashboardFilterBar.tsx';
 import { DashboardGrid } from '../components/dashboard/DashboardGrid.tsx';
 import { RebindDialog } from '../components/dashboard/RebindDialog.tsx';
+import { ShareDialog } from '../components/dashboard/ShareDialog.tsx';
 import { SuggestDashboardButton } from '../components/dashboard/SuggestDashboardButton.tsx';
 import { AddWidgetButton } from '../components/editor/AddWidgetButton.tsx';
 import { FieldPanel } from '../components/editor/FieldPanel.tsx';
@@ -60,6 +61,7 @@ export function DashboardPage() {
   const discardChanges = useAppStore((s) => s.discardChanges);
   const notify = useUiStore((s) => s.notify);
   const [rebinding, setRebinding] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const saving = useAppStore((s) => s.saving);
   const wide = useMediaQuery((theme: Theme) => theme.breakpoints.up('lg'), { noSsr: true });
   const compact = useMediaQuery((theme: Theme) => theme.breakpoints.down('md'), { noSsr: true });
@@ -139,12 +141,14 @@ export function DashboardPage() {
           (compact ? (
             <MoreMenu
               items={[
+                { label: '分享', onClick: () => setSharing(true) },
                 { label: '切換資料來源', onClick: () => setRebinding(true) },
                 { label: '匯出 JSON', onClick: exportJson },
               ]}
             />
           ) : (
             <>
+              <Button onClick={() => setSharing(true)}>分享</Button>
               <Button onClick={() => setRebinding(true)}>切換資料來源</Button>
               <Button onClick={exportJson}>匯出 JSON</Button>
             </>
@@ -194,6 +198,9 @@ export function DashboardPage() {
         </Alert>
       )}
       <RebindDialog dashboard={dashboard} open={rebinding} onClose={() => setRebinding(false)} />
+      {sharing && (
+        <ShareDialog dashboard={dashboard} dataset={dataset} onClose={() => setSharing(false)} />
+      )}
     </Stack>
   );
 }
