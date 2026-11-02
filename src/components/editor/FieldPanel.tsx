@@ -10,6 +10,7 @@
 
 import { useState } from 'react';
 import { useDrag } from 'react-dnd';
+import { useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
@@ -24,6 +25,7 @@ import { useUiStore } from '../../store/uiStore.ts';
 import type { Dataset, DatasetRows, Widget } from '../../types/index.ts';
 import { checkFields } from '../../utils/fieldHealth.ts';
 import { DATA_TYPE_LABELS } from '../../utils/fields.ts';
+import { DATASETS_PATH } from '../../utils/paths.ts';
 import { GROUP_LABELS, GROUP_ORDER, LEVEL_LABELS, groupOf } from '../../utils/fieldKinds.ts';
 import type { FieldProfile } from '../../utils/fieldKinds.ts';
 import { displayUnit, formatValue } from '../../utils/format.ts';
@@ -49,7 +51,7 @@ type Props = {
 export function FieldPanel({ dataset, rows, selectedWidget, checked, onToggle }: Props) {
   const [query, setQuery] = useState('');
   const [showParameters, setShowParameters] = useState(false);
-  const navigate = useUiStore((s) => s.navigate);
+  const navigate = useNavigate();
   const setExpandDatasetId = useUiStore((s) => s.setExpandDatasetId);
   const suggestionCount = checkFields(dataset, rows).length;
   const descriptions = dataset.tables
@@ -91,7 +93,7 @@ export function FieldPanel({ dataset, rows, selectedWidget, checked, onToggle }:
               size='small'
               onClick={() => {
                 setExpandDatasetId(dataset.id);
-                navigate('datasets');
+                void navigate(DATASETS_PATH);
               }}
             >
               去處理

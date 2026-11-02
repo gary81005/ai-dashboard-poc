@@ -2,18 +2,19 @@
 // 有警告時附「改用建議」，套用目前欄位的第一推薦（取代槽位與樣式，保留標題、說明與篩選）；
 // 比率相關的提示附「到資料集頁標記」。
 
+import { useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Stack from '@mui/material/Stack';
 import { WIDGET_TYPE_LABELS } from '../../constants/widgetTypes.ts';
-import { useUiStore } from '../../store/uiStore.ts';
 import type { Widget } from '../../types/index.ts';
+import { DATASETS_PATH } from '../../utils/paths.ts';
 import type { WidgetCheck } from '../../utils/widgetChecks.ts';
 
 type Props = { check: WidgetCheck; onChange: (widget: Widget) => void };
 
 export function WidgetGuidance({ check, onChange }: Props) {
-  const navigate = useUiStore((s) => s.navigate);
+  const navigate = useNavigate();
   const { nextStep, warnings, fix } = check;
   if (!nextStep && warnings.length === 0) return null;
   const problems = warnings.filter((w) => w.level === 'warning');
@@ -44,7 +45,7 @@ export function WidgetGuidance({ check, onChange }: Props) {
           variant='outlined'
           action={
             tips.some((w) => w.markRatio) && (
-              <Button color='inherit' size='small' onClick={() => navigate('datasets')}>
+              <Button color='inherit' size='small' onClick={() => void navigate(DATASETS_PATH)}>
                 到資料集頁標記
               </Button>
             )

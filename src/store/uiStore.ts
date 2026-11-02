@@ -1,12 +1,10 @@
-// 不持久化的 UI 狀態：目前畫面、是否在編輯模式、選取中的 widget、儀表板篩選選取的值、
+// 不持久化的 UI 狀態：是否在編輯模式、選取中的 widget、儀表板篩選選取的值、
 // 全域提示、離開前的確認、編輯模式面板的寬度。
 //
-// 沒有 router（ADR 0001），三個畫面用 view 切換；重新整理後會回到儀表板清單。
+// 目前在哪個畫面、開著哪個儀表板由網址決定（React Router，ADR 0013），不在這裡。
 
 import { create } from 'zustand';
 import { useAppStore } from './appStore.ts';
-
-export type View = 'dashboards' | 'datasets' | 'dashboard';
 
 // 由 App 統一用 Snackbar 顯示；service 背景寫入失敗時也從這裡通知。
 export type Notice = { severity: 'success' | 'warning' | 'error'; message: string };
@@ -17,12 +15,15 @@ export type FilterValues = { dashboardId: string; values: Record<string, string[
 
 // 編輯模式右側兩個面板的寬度（px），由欄位之間的拖曳把手調整。只存在記憶體，重新整理後回到預設。
 export type PanelWidths = { fields: number; editor: number };
+// 被擋下來的離開動作：proceed 繼續離開，cancel 留在原處。換網址時由 useBlocker 提供，
+// cancel 會把網址放回原處；登出時由 leave 提供，cancel 不用做任何事。
+export type PendingLeave = { proceed: () => void; cancel: () => void };
+
 export const DEFAULT_PANEL_WIDTHS: PanelWidths = { fields: 220, editor: 340 };
 // 向右收合的面板：收合後只剩一條窄條，讓儀表板區域變大。同樣只存在記憶體。
 export type CollapsedPanels = Record<keyof PanelWidths, boolean>;
 
 type UiState = {
-  view: View;
   editing: boolean;
   selectedWidgetId: string | null;
   filterValues: FilterValues | null;
@@ -33,10 +34,10 @@ type UiState = {
   panelWidths: PanelWidths;
   collapsedPanels: CollapsedPanels;
   // 有未儲存的變更時，被擋下來的離開動作；App 的 UnsavedChangesDialog 決定儲存、捨棄或取消。
-  pendingLeave: (() => void) | null;
-  navigate: (view: View) => void;
+  pendingLeave: PendingLeave | null;
   leave: (proceed: () => void) => void;
-  setPendingLeave: (proceed: (() => void) | null) => void;
+  setPendingLeave: (pendingLeave: PendingLeave | null) => void;
+  resetDashboardUi: () => void;
   setEditing: (editing: boolean) => void;
   selectWidget: (widgetId: string | null) => void;
   setFilterValue: (dashboardId: string, header: string, values: string[]) => void;
@@ -47,8 +48,7 @@ type UiState = {
   setPanelCollapsed: (panel: keyof PanelWidths, collapsed: boolean) => void;
 };
 
-export const useUiStore = create<UiState>()((set, get) => ({
-  view: 'dashboards',
+export const useUiStore = create<UiState>()((set) => ({
   editing: false,
   selectedWidgetId: null,
   filterValues: null,
@@ -57,15 +57,16 @@ export const useUiStore = create<UiState>()((set, get) => ({
   panelWidths: DEFAULT_PANEL_WIDTHS,
   collapsedPanels: { fields: false, editor: false },
   pendingLeave: null,
-  // 換頁時一律離開編輯模式、取消選取並清空儀表板篩選，避免帶著舊的狀態進到別的儀表板。
-  navigate: (view) =>
-    get().leave(() => set({ view, editing: false, selectedWidgetId: null, filterValues: null })),
-  // 離開目前儀表板的動作（換頁、登出）都經過這裡：沒有未儲存的變更就直接執行，否則先問使用者。
+  // 不是換網址的離開動作（登出）經過這裡：沒有未儲存的變更就直接執行，否則先問使用者。
+  // 換網址由儀表板頁的 useBlocker 攔截。
   leave: (proceed) => {
-    if (useAppStore.getState().draftBase) set({ pendingLeave: proceed });
+    if (useAppStore.getState().draftBase) set({ pendingLeave: { proceed, cancel: () => {} } });
     else proceed();
   },
   setPendingLeave: (pendingLeave) => set({ pendingLeave }),
+  // 換到另一個畫面時由 router.tsx 呼叫：離開編輯模式、取消選取並清空儀表板篩選，
+  // 避免帶著舊的狀態進到別的儀表板。
+  resetDashboardUi: () => set({ editing: false, selectedWidgetId: null, filterValues: null }),
   setEditing: (editing) => set({ editing, selectedWidgetId: null }),
   selectWidget: (widgetId) => set({ selectedWidgetId: widgetId }),
   setFilterValue: (dashboardId, header, values) =>

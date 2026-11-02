@@ -50,8 +50,8 @@ export type LoadStatus =
 type AppState = {
   datasets: Dataset[];
   dashboards: Dashboard[];
-  activeDashboardId: string | null;
   // 目前開啟的儀表板最後一次儲存的版本；沒有未儲存的變更時是 null。
+  // 開著哪個儀表板由網址決定（ADR 0013），這裡不另外記；有未儲存的變更時，draftBase.id 就是那個儀表板。
   draftBase: Dashboard | null;
   // 存檔進行中：頁面與離開確認對話框共用，存檔期間兩邊的「儲存」「捨棄」都不能再按。
   saving: boolean;
@@ -72,7 +72,6 @@ type AppState = {
   removeShare: (dashboardId: string) => void;
   addDashboard: (dashboard: Dashboard) => void;
   removeDashboard: (dashboardId: string) => void;
-  setActiveDashboard: (dashboardId: string | null) => void;
   setDraftBase: (dashboard: Dashboard | null) => void;
   setSaving: (saving: boolean) => void;
   discardChanges: () => void;
@@ -176,7 +175,6 @@ function editDashboard(
 export const useAppStore = create<AppState>()((set) => ({
   datasets: [],
   dashboards: [],
-  activeDashboardId: null,
   draftBase: null,
   saving: false,
   shares: {},
@@ -205,7 +203,7 @@ export const useAppStore = create<AppState>()((set) => ({
       })),
     })),
 
-  setDashboards: (dashboards) => set({ dashboards, activeDashboardId: null, draftBase: null }),
+  setDashboards: (dashboards) => set({ dashboards, draftBase: null }),
   setShares: (shares) => set({ shares: Object.fromEntries(shares.map((x) => [x.dashboardId, x])) }),
   putShare: (share) => set((s) => ({ shares: { ...s.shares, [share.dashboardId]: share } })),
   removeShare: (dashboardId) => set((s) => ({ shares: withoutKey(s.shares, dashboardId) })),
@@ -215,9 +213,7 @@ export const useAppStore = create<AppState>()((set) => ({
     set((s) => ({
       dashboards: s.dashboards.filter((d) => d.id !== dashboardId),
       shares: withoutKey(s.shares, dashboardId),
-      activeDashboardId: s.activeDashboardId === dashboardId ? null : s.activeDashboardId,
     })),
-  setActiveDashboard: (dashboardId) => set({ activeDashboardId: dashboardId, draftBase: null }),
   setDraftBase: (draftBase) => set({ draftBase }),
   setSaving: (saving) => set({ saving }),
   // 還原成最後一次儲存的版本。

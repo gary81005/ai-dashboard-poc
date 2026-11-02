@@ -1,7 +1,7 @@
 // 儀表板的讀取、新增、刪除與儲存流程：dashboards 表（ADR 0007）。
 //
 // 清單層級的操作（新增、複製、匯入、刪除）等資料庫寫入成功才更新畫面；
-// 儀表板內容的修改先只存在記憶體（appStore.draftBase 標記未儲存），按「儲存」才由 saveActiveDashboard 寫入。
+// 儀表板內容的修改先只存在記憶體（appStore.draftBase 標記未儲存），按「儲存」才由 saveDashboardChanges 寫入。
 // 有分享連結時，儲存會一併重算分享結果，由 save_dashboard 在同一個 transaction 裡寫入（ADR 0012）。
 
 import { migrateRecord } from '../utils/schema.ts';
@@ -47,20 +47,21 @@ export async function deleteDashboard(dashboardId: string): Promise<void> {
 // 進行中的存檔。頁面的「儲存」和對話框的「儲存並離開」可能同時觸發，共用同一次請求。
 let inFlight: Promise<void> | null = null;
 
-// 把目前開啟的儀表板寫進資料庫。失敗時丟錯，畫面維持「未儲存」，再按一次就重試。
-export function saveActiveDashboard(): Promise<void> {
-  inFlight ??= writeActiveDashboard().finally(() => {
+// 把有未儲存變更的儀表板（draftBase.id）寫進資料庫。失敗時丟錯，畫面維持「未儲存」，再按一次就重試。
+export function saveDashboardChanges(): Promise<void> {
+  inFlight ??= writeDashboardChanges().finally(() => {
     inFlight = null;
     useAppStore.getState().setSaving(false);
   });
   return inFlight;
 }
 
-async function writeActiveDashboard(): Promise<void> {
+async function writeDashboardChanges(): Promise<void> {
   const isCurrent = sessionGuard();
-  const { dashboards, activeDashboardId, draftBase, setSaving } = useAppStore.getState();
-  const dashboard = dashboards.find((d) => d.id === activeDashboardId);
-  if (!dashboard || !draftBase) return;
+  const { dashboards, draftBase, setSaving } = useAppStore.getState();
+  if (!draftBase) return;
+  const dashboard = dashboards.find((d) => d.id === draftBase.id);
+  if (!dashboard) return;
   setSaving(true);
   let snapshot;
   try {
@@ -86,8 +87,8 @@ async function writeActiveDashboard(): Promise<void> {
     if (share) putShare({ ...share, snapshotAt: new Date().toISOString() });
   }
   const state = useAppStore.getState();
-  // 換頁一定先經過 uiStore.leave，存檔期間不會換到別的儀表板；這裡只是保險，不要把基準記到別的儀表板上。
-  if (state.activeDashboardId !== dashboard.id) return;
+  // 存檔期間「儲存」「捨棄」都不能按，離開也會先被攔下；這裡只是保險，不要把基準記到別的儀表板上。
+  if (state.draftBase?.id !== dashboard.id) return;
   // 存檔期間又有新的修改：剛存的版本成為新的基準，畫面維持「未儲存」。
   const latest = state.dashboards.find((d) => d.id === dashboard.id);
   state.setDraftBase(latest === dashboard ? null : dashboard);

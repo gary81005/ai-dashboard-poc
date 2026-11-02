@@ -1,4 +1,4 @@
-// 應用程式進入點：套上 MUI 主題（含深淺色、繁中語系）與 CssBaseline，再渲染 <App />。
+// 應用程式進入點：套上 MUI 主題（含深淺色、繁中語系）與 CssBaseline，再渲染 router（router.tsx）。
 //
 // 建議的閱讀順序：
 //   types/（設定 JSON 的形狀）→ store/appStore.ts（記憶體裡的狀態）→ services/（Supabase 讀寫）
@@ -29,7 +29,7 @@ function render(node: ReactNode) {
   );
 }
 
-// App 與 auth 用動態 import：services/supabase.ts 缺少環境變數時會在載入階段就 throw，
+// router（連帶 App）與 auth 用動態 import：services/supabase.ts 缺少環境變數時會在載入階段就 throw，
 // 寫成靜態 import 的話 try/catch 接不到，畫面只會一片空白。
 // 分享頁（ADR 0012）不用登入：不開始監聽登入狀態，也不載入使用者資料。
 // 加上 noindex，連結被貼到公開網頁時，搜尋引擎不會收錄分享的內容。
@@ -49,13 +49,15 @@ async function start() {
       await startSharedDashboard(token);
       return;
     }
-    const [{ default: App }, { startAuthListener }] = await Promise.all([
-      import('./App.tsx'),
+    // RouterProvider 也動態載入，分享頁才不會多下載 react-router。
+    const [{ RouterProvider }, { router }, { startAuthListener }] = await Promise.all([
+      import('react-router'),
+      import('./router.tsx'),
       import('./services/auth.ts'),
     ]);
     // 在第一次 render 前開始監聽登入狀態，App 才知道要顯示登入頁還是主畫面。
     startAuthListener();
-    render(<App />);
+    render(<RouterProvider router={router} />);
   } catch (error) {
     console.error('無法啟動應用程式', error);
     render(<StartupErrorPage error={error} />);

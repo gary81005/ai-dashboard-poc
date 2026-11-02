@@ -2,8 +2,11 @@
 //   - 檢視模式：只顯示格線上的 widget（DashboardGrid），可切換資料來源、匯出 JSON、分享（ADR 0012）
 //   - 編輯模式：EditWorkspace 三欄版面 = 格線｜欄位清單｜元件設定，可拖拉欄位、新增與移動元件
 //
+// 網址是 /dashboards/:dashboardId（ADR 0013），編輯模式不在網址裡（uiStore.editing）。
+//
 // 兩種模式下的修改（含檢視模式的篩選、切換資料來源）都先只存在記憶體，按「儲存」才寫進 Supabase
-// （ADR 0007）。換頁、登出時的提醒由 uiStore.leave 處理，關閉或重新整理分頁時用 beforeunload 提醒。
+// （ADR 0007）。有未儲存的變更時：換網址（含瀏覽器上一頁）由 useBlocker 攔下、登出由 uiStore.leave 攔下，
+// 都交給 UnsavedChangesDialog；關閉或重新整理分頁時用 beforeunload 提醒。
 //
 // 結構：DashboardPage（標題列與對話框）→ DashboardContent（等資料列載入）→ DashboardGrid 或 EditWorkspace。
 //
@@ -13,6 +16,7 @@
 import { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
+import { useBlocker, useNavigate, useParams } from 'react-router';
 import { useContainerWidth } from 'react-grid-layout';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -41,21 +45,24 @@ import { RecommendPanel } from '../components/editor/RecommendPanel.tsx';
 import type { CheckedFields } from '../components/editor/RecommendPanel.tsx';
 import { WidgetEditor } from '../components/editor/WidgetEditor.tsx';
 import { useDatasetRows } from '../hooks/useDatasetRows.ts';
-import { saveActiveDashboard } from '../services/dashboardService.ts';
+import { saveDashboardChanges } from '../services/dashboardService.ts';
 import { downloadJson } from '../services/download.ts';
 import { useAppStore } from '../store/appStore.ts';
 import { useRowsStore } from '../store/rowsStore.ts';
 import { DEFAULT_PANEL_WIDTHS, useUiStore } from '../store/uiStore.ts';
 import type { Dashboard, Dataset, DatasetRows } from '../types/index.ts';
 import { buildExport } from '../utils/dashboardTransfer.ts';
+import { DASHBOARDS_PATH } from '../utils/paths.ts';
 import { PANEL_MIN, RESIZER_WIDTH, fitPanels, maxPanelWidth } from '../utils/panelLayout.ts';
 
 export function DashboardPage() {
-  const navigate = useUiStore((s) => s.navigate);
+  const { dashboardId } = useParams();
+  const navigate = useNavigate();
   const editing = useUiStore((s) => s.editing);
   const setEditing = useUiStore((s) => s.setEditing);
+  const setPendingLeave = useUiStore((s) => s.setPendingLeave);
   const renameDashboard = useAppStore((s) => s.renameDashboard);
-  const dashboard = useAppStore((s) => s.dashboards.find((d) => d.id === s.activeDashboardId));
+  const dashboard = useAppStore((s) => s.dashboards.find((d) => d.id === dashboardId));
   const dataset = useAppStore((s) => s.datasets.find((d) => d.id === dashboard?.datasetId));
   const dirty = useAppStore((s) => s.draftBase !== null);
   const discardChanges = useAppStore((s) => s.discardChanges);
@@ -71,6 +78,16 @@ export function DashboardPage() {
     if (editing && !wide) setEditing(false);
   }, [editing, wide, setEditing]);
 
+  // 有未儲存的變更時，離開這個儀表板的換頁先擋下來；只改 query 或 hash 不算離開。
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      dirty && currentLocation.pathname !== nextLocation.pathname,
+  );
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return;
+    setPendingLeave({ proceed: blocker.proceed, cancel: blocker.reset });
+  }, [blocker, setPendingLeave]);
+
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => event.preventDefault();
@@ -80,7 +97,7 @@ export function DashboardPage() {
 
   const handleSave = async () => {
     try {
-      await saveActiveDashboard();
+      await saveDashboardChanges();
     } catch (error) {
       notify({
         severity: 'error',
@@ -93,7 +110,7 @@ export function DashboardPage() {
     return (
       <Alert
         severity='info'
-        action={<Button onClick={() => navigate('dashboards')}>回到清單</Button>}
+        action={<Button onClick={() => void navigate(DASHBOARDS_PATH)}>回到清單</Button>}
       >
         找不到這個儀表板。
       </Alert>
@@ -110,7 +127,7 @@ export function DashboardPage() {
         useFlexGap
         sx={{ alignItems: 'center', flexWrap: 'wrap', gap: { xs: 1, md: 2 } }}
       >
-        <Button onClick={() => navigate('dashboards')}>← 儀表板清單</Button>
+        <Button onClick={() => void navigate(DASHBOARDS_PATH)}>← 儀表板清單</Button>
         {editing ? (
           <TextField
             size='small'

@@ -5,6 +5,7 @@
 
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
+import { useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
@@ -13,6 +14,7 @@ import Stack from '@mui/material/Stack';
 import { importWorkbook } from '../../services/datasetService.ts';
 import { loadSample } from '../../services/sampleService.ts';
 import { useUiStore } from '../../store/uiStore.ts';
+import { DATASETS_PATH, dashboardPath } from '../../utils/paths.ts';
 import { StandardizeButton } from './StandardizeButton.tsx';
 
 type Busy = 'upload' | 'sample' | null;
@@ -39,7 +41,7 @@ export function WorkbookActions({
   // 寫入資料列的百分比；解析與上傳原始檔期間還沒有進度，是 null。
   const [percent, setPercent] = useState<number | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
-  const navigate = useUiStore((s) => s.navigate);
+  const navigate = useNavigate();
   const setExpandDatasetId = useUiStore((s) => s.setExpandDatasetId);
 
   const handleProgress = (done: number, total: number) =>
@@ -69,7 +71,7 @@ export function WorkbookActions({
             }
           : { severity: 'success', message: `已匯入「${dataset.name}」` },
       );
-      if (!stayOnPage) navigate('datasets');
+      if (!stayOnPage) void navigate(DATASETS_PATH);
     } catch (error) {
       setNotice({ severity: 'error', message: `匯入失敗：${errorMessage(error)}` });
     } finally {
@@ -81,8 +83,8 @@ export function WorkbookActions({
   const handleSample = async () => {
     setBusy('sample');
     try {
-      await loadSample(handleProgress);
-      navigate('dashboard');
+      const dashboard = await loadSample(handleProgress);
+      void navigate(dashboardPath(dashboard.id));
     } catch (error) {
       setNotice({ severity: 'error', message: `載入範例失敗：${errorMessage(error)}` });
     } finally {

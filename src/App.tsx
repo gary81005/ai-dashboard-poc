@@ -1,11 +1,9 @@
-// 最外層版面：頂部 HeaderBar（「儀表板」「資料集」兩個分頁、帳號與登出）＋ 主內容區。
+// 根版面（router.tsx 的根路由）：頂部 HeaderBar（「儀表板」「資料集」兩個分頁、帳號與登出）＋ 主內容區。
 // 窄螢幕（ADR 0009）：手機隱藏產品名稱、md 以下隱藏 email，主內容區的留白縮小。
-// 未登入時只顯示登入頁（ADR 0007）。
-//
-// 專案沒有 router（ADR 0001），顯示哪個畫面由 uiStore.view 決定：
-//   dashboards → 儀表板清單、datasets → 資料集庫、dashboard → 單一儀表板（檢視／編輯）。
+// 未登入時在原網址直接顯示登入頁（ADR 0007、0013），登入並載入資料後才顯示網址對應的畫面（<Outlet />）。
 
 import type { ReactNode } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -16,15 +14,13 @@ import Tabs from '@mui/material/Tabs';
 import Typography from '@mui/material/Typography';
 import { HeaderBar } from './components/HeaderBar.tsx';
 import { UnsavedChangesDialog } from './components/dashboard/UnsavedChangesDialog.tsx';
-import { DashboardListPage } from './pages/DashboardListPage.tsx';
-import { DashboardPage } from './pages/DashboardPage.tsx';
-import { DatasetLibraryPage } from './pages/DatasetLibraryPage.tsx';
 import { LoginPage } from './pages/LoginPage.tsx';
 import { signOut } from './services/auth.ts';
 import { loadUserData } from './services/userData.ts';
 import { useAppStore } from './store/appStore.ts';
 import { useAuthStore } from './store/authStore.ts';
 import { useUiStore } from './store/uiStore.ts';
+import { DASHBOARDS_PATH, DATASETS_PATH } from './utils/paths.ts';
 
 function FullScreen({ children }: { children: ReactNode }) {
   return (
@@ -50,13 +46,13 @@ function GlobalNotice() {
 function App() {
   const authStatus = useAuthStore((s) => s.status);
   const email = useAuthStore((s) => s.user?.email);
-  const view = useUiStore((s) => s.view);
-  const navigate = useUiStore((s) => s.navigate);
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
   const notify = useUiStore((s) => s.notify);
   const leave = useUiStore((s) => s.leave);
   const loadStatus = useAppStore((s) => s.loadStatus);
   // 單一儀表板頁沒有自己的分頁，沿用「儀表板」分頁的反白。
-  const tab = view === 'datasets' ? 'datasets' : 'dashboards';
+  const tab = pathname.startsWith(DATASETS_PATH) ? DATASETS_PATH : DASHBOARDS_PATH;
 
   if (authStatus === 'signedOut') {
     return (
@@ -88,7 +84,8 @@ function App() {
   const handleSignOut = async () => {
     try {
       await signOut();
-      navigate('dashboards');
+      // 不停在上一位使用者的儀表板網址，下一個人登入後才不會看到「找不到這個儀表板」。
+      void navigate(DASHBOARDS_PATH, { replace: true });
     } catch (error) {
       notify({
         severity: 'error',
@@ -100,9 +97,9 @@ function App() {
   return (
     <Box sx={{ minHeight: '100svh', bgcolor: 'background.default' }}>
       <HeaderBar>
-        <Tabs value={tab} onChange={(_, value: 'dashboards' | 'datasets') => navigate(value)}>
-          <Tab value='dashboards' label='儀表板' />
-          <Tab value='datasets' label='資料集' />
+        <Tabs value={tab} onChange={(_, value: string) => void navigate(value)}>
+          <Tab value={DASHBOARDS_PATH} label='儀表板' />
+          <Tab value={DATASETS_PATH} label='資料集' />
         </Tabs>
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography
@@ -128,9 +125,7 @@ function App() {
         </Box>
       </HeaderBar>
       <Box component='main' sx={{ p: { xs: 1.5, sm: 2, md: 3 } }}>
-        {view === 'dashboards' && <DashboardListPage />}
-        {view === 'datasets' && <DatasetLibraryPage />}
-        {view === 'dashboard' && <DashboardPage />}
+        <Outlet />
       </Box>
       <UnsavedChangesDialog />
       <GlobalNotice />

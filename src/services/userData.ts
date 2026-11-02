@@ -44,8 +44,8 @@ export function resetUserData(): void {
   setShares([]);
   setLoadStatus({ status: 'idle' });
   useRowsStore.getState().clear();
+  // 網址不動：session 過期時，重新登入後回到原本的畫面（ADR 0013 §5）。
   useUiStore.setState({
-    view: 'dashboards',
     editing: false,
     selectedWidgetId: null,
     pendingLeave: null,

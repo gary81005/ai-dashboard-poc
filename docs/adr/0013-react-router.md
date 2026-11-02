@@ -41,9 +41,9 @@
 
 ### 3. 狀態的歸屬
 
-- **網址是「目前在哪個畫面、開著哪個儀表板」的唯一來源。** 拿掉 `uiStore.view`、`uiStore.navigate` 與 `appStore.activeDashboardId`。儀表板頁用 `useParams` 取得 id，`services/dashboardService.ts` 等需要 id 的地方改成由參數傳入。`draftBase` 本身就帶著 id，判斷「這份未儲存的變更屬於哪個儀表板」不受影響。
+- **網址是「目前在哪個畫面、開著哪個儀表板」的唯一來源。** 拿掉 `uiStore.view`、`uiStore.navigate` 與 `appStore.activeDashboardId`。儀表板頁用 `useParams` 取得 id。儲存時要寫哪個儀表板，改以 `draftBase.id` 為準（`saveDashboardChanges`）：有未儲存的變更才需要儲存，而 `draftBase` 本身就帶著 id。
 - **編輯模式不放進網址**，仍是 `uiStore.editing`。編輯是同一個畫面的模式；未儲存的變更只在記憶體裡，重新整理本來就會回到檢視模式。放進網址還得處理窄螢幕不能編輯（[0009](0009-responsive-layout.md)）時的導回，以及上一頁的行為。
-- `selectedWidgetId`、`filterValues`、面板寬度等仍在 `uiStore`。離開儀表板時一樣清掉編輯模式、選取與篩選，避免帶進下一個儀表板。
+- `selectedWidgetId`、`filterValues`、面板寬度等仍在 `uiStore`。換到另一個路徑時一樣清掉編輯模式、選取與篩選，避免帶進下一個儀表板。這件事放在 `router.subscribe`，不放在頁面 effect 的 cleanup：StrictMode 開發時 cleanup 會多跑一次，會把「新增儀表板」剛開啟的編輯模式關掉。
 
 ### 4. 未儲存的變更
 
@@ -70,10 +70,9 @@
 ### 實作順序
 
 1. 這份 ADR。
-2. 換上 router：路由表、根版面（登入／載入中／錯誤的判斷 + `<Outlet />`）、拿掉 `uiStore.view` 與 `appStore.activeDashboardId`、`vercel.json`。換頁暫時仍經過 `uiStore.leave`，行為和現在一樣。
-3. 未儲存的變更改用 `useBlocker` 攔截。
-4. 導覽細節：連結、登出、登入後回原網址、`document.title`、`<ScrollRestoration />`。
-5. 文件同步（CLAUDE.md、README）。
+2. 換上 router，同時改用 `useBlocker` 攔截未儲存的變更：路由表、根版面（登入／載入中／錯誤的判斷 + `<Outlet />`）、拿掉 `uiStore.view` 與 `appStore.activeDashboardId`、`vercel.json`。兩件事要一起做：只換 router 的話，瀏覽器的上一頁會在沒有提醒的情況下離開有未儲存變更的儀表板，留下的 `draftBase` 還會被當成下一個儀表板的基準。
+3. 導覽細節：連結、登入後回原網址、`document.title`、`<ScrollRestoration />`。
+4. 文件同步（CLAUDE.md、README）。
 
 ## 影響
 

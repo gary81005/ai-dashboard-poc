@@ -27,7 +27,8 @@ export function startAuthListener(): void {
   void supabase.auth.initialize().then(({ error }) => {
     if (!error) return;
     useAuthStore.getState().setLinkError('登入連結無效或已過期，請重新寄送。');
-    history.replaceState(null, '', location.pathname + location.search);
+    // 保留 history.state：React Router 把自己的紀錄放在裡面（ADR 0013）。
+    history.replaceState(history.state, '', location.pathname + location.search);
   });
 }
 

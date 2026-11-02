@@ -2,6 +2,7 @@
 // 預覽欄位遺失狀況，確認後以新的 id 建立儀表板並開啟。
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
 import Dialog from '@mui/material/Dialog';
@@ -17,6 +18,7 @@ import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { DashboardExport } from '../../utils/dashboardTransfer.ts';
 import { instantiateImport } from '../../utils/dashboardTransfer.ts';
+import { dashboardPath } from '../../utils/paths.ts';
 import { findIssues, findMissingFilters, rebindDashboard } from '../../utils/rebind.ts';
 import { WorkbookActions } from '../datasets/WorkbookActions.tsx';
 import { IssueList } from './IssueList.tsx';
@@ -25,8 +27,7 @@ type Props = { data: DashboardExport | null; onClose: () => void };
 
 export function ImportDashboardDialog({ data, onClose }: Props) {
   const datasets = useAppStore((s) => s.datasets);
-  const setActiveDashboard = useAppStore((s) => s.setActiveDashboard);
-  const navigate = useUiStore((s) => s.navigate);
+  const navigate = useNavigate();
   const notify = useUiStore((s) => s.notify);
   const [importing, setImporting] = useState(false);
   const [datasetId, setDatasetId] = useState('');
@@ -50,10 +51,9 @@ export function ImportDashboardDialog({ data, onClose }: Props) {
     } finally {
       setImporting(false);
     }
-    setActiveDashboard(dashboard.id);
     setDatasetId('');
     onClose();
-    navigate('dashboard');
+    void navigate(dashboardPath(dashboard.id));
   };
 
   return (

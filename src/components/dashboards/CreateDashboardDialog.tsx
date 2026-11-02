@@ -4,6 +4,7 @@
 // 版面與儀表板篩選，和儀表板一起建立。資料列讀取失敗或沒有可用的資料表時建立空白儀表板。
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import Button from '@mui/material/Button';
 import Checkbox from '@mui/material/Checkbox';
 import Dialog from '@mui/material/Dialog';
@@ -23,6 +24,7 @@ import { useRowsStore } from '../../store/rowsStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { Dashboard } from '../../types/index.ts';
 import { createId } from '../../utils/ids.ts';
+import { dashboardPath } from '../../utils/paths.ts';
 import { mainTableOptions, suggestDashboard } from '../../utils/suggestDashboard.ts';
 import { MainTableField } from './MainTableField.tsx';
 
@@ -32,8 +34,7 @@ const errorMessage = (error: unknown) => (error instanceof Error ? error.message
 
 export function CreateDashboardDialog({ open, onClose }: Props) {
   const datasets = useAppStore((s) => s.datasets);
-  const setActiveDashboard = useAppStore((s) => s.setActiveDashboard);
-  const navigate = useUiStore((s) => s.navigate);
+  const navigate = useNavigate();
   const setEditing = useUiStore((s) => s.setEditing);
   const notify = useUiStore((s) => s.notify);
   const loadRows = useRowsStore((s) => s.load);
@@ -105,13 +106,13 @@ export function CreateDashboardDialog({ open, onClose }: Props) {
       notify({ severity: 'error', message: errorMessage(failure) });
       return;
     }
-    setActiveDashboard(dashboard.id);
     setName('');
     setDatasetId('');
     setTableKey('');
     setSuggest(true);
     onClose();
-    navigate('dashboard');
+    // 換頁會清掉編輯模式（router.tsx），所以等換到新儀表板之後才開啟。
+    await navigate(dashboardPath(dashboard.id));
     setEditing(true);
   };
 
