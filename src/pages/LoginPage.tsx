@@ -1,6 +1,6 @@
 // 登入頁：輸入 email，寄出 magic link。未登入時整個 app 只顯示這一頁（ADR 0007）。
 //
-// 使用者點信中的連結後會回到這個網址，supabase-js 讀到網址裡的 token 就會登入，App 自動切到主畫面。
+// 未登入時在原網址直接顯示這一頁（ADR 0013）。使用者點信中的連結後會回到這個網址，supabase-js 讀到網址裡的 token 就會登入，App 自動切到主畫面。
 
 import { useState } from 'react';
 import Alert from '@mui/material/Alert';
@@ -10,6 +10,7 @@ import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.ts';
 import { sendMagicLink } from '../services/auth.ts';
 import { useAuthStore } from '../store/authStore.ts';
 
@@ -24,6 +25,7 @@ export function LoginPage() {
   const setLinkError = useAuthStore((s) => s.setLinkError);
   const [email, setEmail] = useState('');
   const [send, setSend] = useState<SendState>({ status: 'idle' });
+  useDocumentTitle('登入');
 
   const handleSubmit = async () => {
     const trimmed = email.trim();

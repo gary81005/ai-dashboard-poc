@@ -1,8 +1,10 @@
-// 儀表板清單上的一張卡片：點擊開啟，另有複製、匯出 JSON、刪除（需確認）。
+// 儀表板清單上的一張卡片：卡片本體是連到儀表板網址的連結（可以 Cmd／中鍵開新分頁，ADR 0013），
+// 下方另有複製、匯出 JSON、刪除（需確認）；這些按鈕在連結外面，點了不會開啟儀表板。
 // 有還沒過期的分享連結時，名稱旁顯示「分享中」，提醒這個儀表板正對外公開（ADR 0012）。
 
 import { useState } from 'react';
 import dayjs from 'dayjs';
+import { Link } from 'react-router';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Card from '@mui/material/Card';
@@ -23,11 +25,12 @@ import { useAppStore } from '../../store/appStore.ts';
 import { useUiStore } from '../../store/uiStore.ts';
 import type { Dashboard, Dataset } from '../../types/index.ts';
 import { buildExport, cloneDashboard } from '../../utils/dashboardTransfer.ts';
+import { dashboardPath } from '../../utils/paths.ts';
 import { isShareActive } from '../../utils/shareLink.ts';
 
-type Props = { dashboard: Dashboard; dataset: Dataset | undefined; onOpen: () => void };
+type Props = { dashboard: Dashboard; dataset: Dataset | undefined };
 
-export function DashboardCard({ dashboard, dataset, onOpen }: Props) {
+export function DashboardCard({ dashboard, dataset }: Props) {
   const [confirming, setConfirming] = useState(false);
   const notify = useUiStore((s) => s.notify);
   const share = useAppStore((s) => s.shares[dashboard.id]);
@@ -52,7 +55,7 @@ export function DashboardCard({ dashboard, dataset, onOpen }: Props) {
 
   return (
     <Card variant='outlined' sx={{ display: 'flex', flexDirection: 'column' }}>
-      <CardActionArea onClick={onOpen} sx={{ flex: 1 }}>
+      <CardActionArea component={Link} to={dashboardPath(dashboard.id)} sx={{ flex: 1 }}>
         <CardContent>
           <Stack direction='row' spacing={1} sx={{ alignItems: 'center', mb: 0.75 }}>
             <Typography variant='h6' component='h3' noWrap sx={{ minWidth: 0 }}>

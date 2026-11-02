@@ -5,12 +5,14 @@
 import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.ts';
 import { useAppStore } from '../store/appStore.ts';
 import { DatasetCard } from '../components/datasets/DatasetCard.tsx';
 import { WorkbookActions } from '../components/datasets/WorkbookActions.tsx';
 
 export function DatasetLibraryPage() {
   const datasets = useAppStore((s) => s.datasets);
+  useDocumentTitle('資料集');
 
   return (
     <Stack spacing={3} sx={{ maxWidth: 1200, mx: 'auto' }}>

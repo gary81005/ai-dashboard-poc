@@ -4,7 +4,6 @@
 
 import { useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
-import { useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -16,19 +15,19 @@ import { CreateDashboardDialog } from '../components/dashboards/CreateDashboardD
 import { DashboardCard } from '../components/dashboards/DashboardCard.tsx';
 import { ImportDashboardDialog } from '../components/dashboards/ImportDashboardDialog.tsx';
 import { WorkbookActions } from '../components/datasets/WorkbookActions.tsx';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.ts';
 import { useAppStore } from '../store/appStore.ts';
 import { parseExport } from '../utils/dashboardTransfer.ts';
 import type { DashboardExport } from '../utils/dashboardTransfer.ts';
-import { dashboardPath } from '../utils/paths.ts';
 
 export function DashboardListPage() {
   const dashboards = useAppStore((s) => s.dashboards);
   const datasets = useAppStore((s) => s.datasets);
-  const navigate = useNavigate();
   const importRef = useRef<HTMLInputElement>(null);
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState<DashboardExport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  useDocumentTitle('儀表板');
 
   // 先解析匯入檔；成功後交給 ImportDashboardDialog 選擇資料集並確認。
   const handleImportFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -87,7 +86,6 @@ export function DashboardListPage() {
               key={dashboard.id}
               dashboard={dashboard}
               dataset={datasets.find((d) => d.id === dashboard.datasetId)}
-              onOpen={() => void navigate(dashboardPath(dashboard.id))}
             />
           ))}
         </Box>

@@ -3,7 +3,7 @@
 // 未登入時在原網址直接顯示登入頁（ADR 0007、0013），登入並載入資料後才顯示網址對應的畫面（<Outlet />）。
 
 import type { ReactNode } from 'react';
-import { Outlet, useLocation, useNavigate } from 'react-router';
+import { Link, Outlet, ScrollRestoration, useLocation, useNavigate } from 'react-router';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -97,9 +97,10 @@ function App() {
   return (
     <Box sx={{ minHeight: '100svh', bgcolor: 'background.default' }}>
       <HeaderBar>
-        <Tabs value={tab} onChange={(_, value: string) => void navigate(value)}>
-          <Tab value={DASHBOARDS_PATH} label='儀表板' />
-          <Tab value={DATASETS_PATH} label='資料集' />
+        {/* 分頁是連結，可以 Cmd／中鍵開新分頁（ADR 0013）。 */}
+        <Tabs value={tab}>
+          <Tab value={DASHBOARDS_PATH} label='儀表板' component={Link} to={DASHBOARDS_PATH} />
+          <Tab value={DATASETS_PATH} label='資料集' component={Link} to={DATASETS_PATH} />
         </Tabs>
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
           <Typography
@@ -129,6 +130,8 @@ function App() {
       </Box>
       <UnsavedChangesDialog />
       <GlobalNotice />
+      {/* 上一頁回到原本的捲動位置，進到新頁面時捲到最上方。 */}
+      <ScrollRestoration />
     </Box>
   );
 }

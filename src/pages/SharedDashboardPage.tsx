@@ -13,6 +13,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Typography from '@mui/material/Typography';
 import dayjs from 'dayjs';
 import { HeaderBar } from '../components/HeaderBar.tsx';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.ts';
 import { SharedDashboardGrid } from '../components/share/SharedDashboardGrid.tsx';
 import { fetchSharedDashboard } from '../services/shareService.ts';
 import type { SharedDashboard } from '../services/shareService.ts';
@@ -45,9 +46,7 @@ export function SharedDashboardPage({ token }: { token: string }) {
   }, [token, attempt]);
 
   const name = state.status === 'ready' ? state.snapshot.name : undefined;
-  useEffect(() => {
-    if (name) document.title = `${name}｜個人化儀表板`;
-  }, [name]);
+  useDocumentTitle(name);
 
   const retry = () => {
     setState({ status: 'loading' });

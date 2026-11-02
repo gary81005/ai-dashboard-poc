@@ -16,7 +16,7 @@
 import { useEffect, useState } from 'react';
 import { DndProvider } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
-import { useBlocker, useNavigate, useParams } from 'react-router';
+import { Link, useBlocker, useParams } from 'react-router';
 import { useContainerWidth } from 'react-grid-layout';
 import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
@@ -45,6 +45,7 @@ import { RecommendPanel } from '../components/editor/RecommendPanel.tsx';
 import type { CheckedFields } from '../components/editor/RecommendPanel.tsx';
 import { WidgetEditor } from '../components/editor/WidgetEditor.tsx';
 import { useDatasetRows } from '../hooks/useDatasetRows.ts';
+import { useDocumentTitle } from '../hooks/useDocumentTitle.ts';
 import { saveDashboardChanges } from '../services/dashboardService.ts';
 import { downloadJson } from '../services/download.ts';
 import { useAppStore } from '../store/appStore.ts';
@@ -57,13 +58,13 @@ import { PANEL_MIN, RESIZER_WIDTH, fitPanels, maxPanelWidth } from '../utils/pan
 
 export function DashboardPage() {
   const { dashboardId } = useParams();
-  const navigate = useNavigate();
   const editing = useUiStore((s) => s.editing);
   const setEditing = useUiStore((s) => s.setEditing);
   const setPendingLeave = useUiStore((s) => s.setPendingLeave);
   const renameDashboard = useAppStore((s) => s.renameDashboard);
   const dashboard = useAppStore((s) => s.dashboards.find((d) => d.id === dashboardId));
   const dataset = useAppStore((s) => s.datasets.find((d) => d.id === dashboard?.datasetId));
+  useDocumentTitle(dashboard ? dashboard.name : '找不到儀表板');
   const dirty = useAppStore((s) => s.draftBase !== null);
   const discardChanges = useAppStore((s) => s.discardChanges);
   const notify = useUiStore((s) => s.notify);
@@ -110,7 +111,11 @@ export function DashboardPage() {
     return (
       <Alert
         severity='info'
-        action={<Button onClick={() => void navigate(DASHBOARDS_PATH)}>回到清單</Button>}
+        action={
+          <Button component={Link} to={DASHBOARDS_PATH}>
+            回到清單
+          </Button>
+        }
       >
         找不到這個儀表板。
       </Alert>
@@ -127,7 +132,10 @@ export function DashboardPage() {
         useFlexGap
         sx={{ alignItems: 'center', flexWrap: 'wrap', gap: { xs: 1, md: 2 } }}
       >
-        <Button onClick={() => void navigate(DASHBOARDS_PATH)}>← 儀表板清單</Button>
+        {/* 一律回清單，不用上一頁：直接打開網址的人沒有上一頁可以回。 */}
+        <Button component={Link} to={DASHBOARDS_PATH}>
+          ← 儀表板清單
+        </Button>
         {editing ? (
           <TextField
             size='small'

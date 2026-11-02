@@ -42,11 +42,12 @@ function removeLegacyStorage(): void {
   }
 }
 
-// 寄出登入連結。信中的連結會導回目前的網址，所以這個網址必須在 Supabase Auth 的 Redirect URLs 允許清單裡。
+// 寄出登入連結。信中的連結會導回目前的網址（不含 query 與 hash），登入後回到原本的畫面（ADR 0013 §5），
+// 所以 Supabase Auth 的 Redirect URLs 要允許這些路徑（例如 http://localhost:5173/**）。
 export async function sendMagicLink(email: string): Promise<void> {
   const { error } = await supabase.auth.signInWithOtp({
     email,
-    options: { emailRedirectTo: location.origin },
+    options: { emailRedirectTo: location.origin + location.pathname },
   });
   if (error) throw new Error(toMessage(error.status, error.message));
 }
