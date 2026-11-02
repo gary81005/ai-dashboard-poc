@@ -141,6 +141,7 @@ docs/adr/             架構決策紀錄
   - [0010](docs/adr/0010-chart-recommendation-rules.md) 欄位組合與圖表推薦規則
   - [0011](docs/adr/0011-value-labels.md) 值標籤（schema v3）
   - [0012](docs/adr/0012-share-links.md) 分享連結
+  - [0013](docs/adr/0013-react-router.md) 導入 React Router（取代 0001 §5）
 - [`CLAUDE.md`](CLAUDE.md)：開發規範與工具鏈限制。
 
 ## 開發注意事項

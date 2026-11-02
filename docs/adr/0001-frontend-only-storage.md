@@ -17,7 +17,7 @@
    - **資料列**：用 `idb-keyval` 存進 IndexedDB，key 是 `dataset-rows:<datasetId>`，value 是 `Record<tableKey, Row[]>`。
 3. **可以建立多個儀表板**，有清單可以切換、複製、刪除。
 4. **提供匯出 / 匯入 JSON**，只包含設定和欄位簽章，不包含資料（見 [0005](0005-dashboard-config-schema-v1.md)）。
-5. **不引入 router。** 三個畫面（資料集庫、儀表板清單、儀表板）用 state 切換。
+5. **不引入 router。** 三個畫面（資料集庫、儀表板清單、儀表板）用 state 切換。（已由 [0013](0013-react-router.md) 取代）
 6. **只支援桌機瀏覽器**（滑鼠操作），不支援觸控。
 
 ## 影響
