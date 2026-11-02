@@ -68,7 +68,7 @@ npm install
    npm run db:push    # 套用 supabase/migrations/：資料表、RLS policy、source-files bucket
    ```
 
-4. 在後台的 **Authentication → URL Configuration** 把開發網址（`http://localhost:5173`）加進 redirect 允許清單，否則登入連結會導回錯的網址。部署後也要把正式網址加進去。
+4. 在後台的 **Authentication → URL Configuration** 把開發網址加進 redirect 允許清單，寫成 `http://localhost:5173/**`，否則登入連結會導回錯的網址。登入後會回到原本打開的網址，所以結尾要有 `/**`。部署後也要把正式網址的 `/**` 加進去。
 
 ### 3. 啟動
 
@@ -116,7 +116,7 @@ src/
   services/     I/O：Supabase、登入、Excel 解析、資料集與儀表板的讀寫
   store/        Zustand：appStore（資料集與儀表板）、rowsStore、authStore、uiStore
   components/   widgets/（各元件）、editor/（編輯模式）、dashboard/、dashboards/、datasets/
-  pages/        每個畫面一個元件（沒有 router，用 uiStore 切換）
+  pages/        每個畫面一個元件；網址與畫面的對應在 router.tsx（React Router）
   constants/    範例儀表板、各元件的槽位定義
 supabase/migrations/  資料庫 schema 與 RLS
 public/samples/       範例活頁簿

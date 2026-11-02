@@ -1,4 +1,4 @@
-// 分享連結的網址（ADR 0012）：`?share=<token>`。專案沒有 router，啟動時（main.tsx）讀這個參數決定要不要顯示分享頁。
+// 分享連結的網址（ADR 0012）：`?share=<token>`。啟動時（main.tsx）在建立 router 之前讀這個參數，決定要不要顯示分享頁。
 // 用 query string 而不是路徑，部署時不必設定 rewrite。
 
 export const SHARE_PARAM = 'share';

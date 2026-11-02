@@ -71,7 +71,7 @@
 
 ### 7. 前端
 
-- **網址是 `?share=<token>`。** 專案沒有 router；啟動時讀到這個參數，就不檢查登入，直接顯示分享頁。用 query string 也不用改 Vercel 的路由設定。
+- **網址是 `?share=<token>`。** 專案沒有 router；啟動時讀到這個參數，就不檢查登入，直接顯示分享頁。用 query string 也不用改 Vercel 的路由設定。（之後導入 router（[0013](0013-react-router.md)）仍維持這個網址，`main.tsx` 在建立 router 之前分流。）
 - 擁有者自己打開分享連結，看到的也是分享頁，和別人看到的一樣。
 - 存取資料庫一樣經過 `services/`（新增 `services/shareService.ts`），UI 不直接 import Supabase client。
 - 登入後載入儀表板清單時，一併載入自己的分享連結，供「分享中」標籤和儲存流程判斷要不要重算分享結果。

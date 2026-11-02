@@ -3,7 +3,7 @@
 // 建議的閱讀順序：
 //   types/（設定 JSON 的形狀）→ store/appStore.ts（記憶體裡的狀態）→ services/（Supabase 讀寫）
 //   → services/parseWorkbook.ts（Excel 怎麼變成資料）→ utils/query.ts（資料怎麼變成圖表數字）
-//   → pages/（三個畫面）→ components/（畫面上的各個區塊）。
+//   → router.tsx（網址與畫面）→ pages/（各個畫面）→ components/（畫面上的各個區塊）。
 // 設計決策記在 docs/adr/，名詞定義在 CONTEXT.md。
 
 import { StrictMode } from 'react';
